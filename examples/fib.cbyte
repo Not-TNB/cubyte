@@ -1,0 +1,43 @@
+// Compute the nth Fibonacci number on the cube.
+//
+// Every int variable is a cube register whose value is tracked modulo its
+// register "order" (the number after ':'). Fibonacci grows fast, so the result
+// is correct only while fib(n) stays below that order. The cube has just 20
+// pieces and the input/output register R0 already occupies all 8 corners, which
+// leaves the 12 edges to share between the scratch register and our variables.
+// Three order-4 edge registers use exactly those 12 edges, so order 4 is the
+// real ceiling here -- hence the result is fib(n) mod 4.
+//
+// To stay within three registers we avoid any temporary. A single Fibonacci
+// step (a,b) -> (b, a+b) needs a temp, but two steps can be done in place with
+// just additions:
+//
+//   a := a + b      // (a,b) -> (a+b, b)
+//   b := b + a      // (a,b) -> (a+b, a+2b)  ==  advance two Fibonacci steps
+//
+// Starting from (a,b) = (0,1) = (F0,F1), after j of these double-steps
+// (a,b) = (F(2j), F(2j+1)). So we loop floor(n/2) times, then if n was odd we
+// copy b (the next number) into a. We reuse the input register _io as the
+// counter, decrementing it by two each double-step (a constant subtraction,
+// which does not need the scratch register).
+
+input "n: ";
+
+let int : 8 a := 0;
+let int : 8 b := 1;
+
+while not (_io = 0) {
+    if not (_io = 1) {
+        // _io >= 2: advance two Fibonacci numbers, consume two from the counter.
+        a := a + b;
+        b := b + a;
+        _io := _io - 1;
+        _io := _io - 1;
+    } else {
+        // _io == 1: n was odd, the answer is the next number, held in b.
+        a := b;
+        _io := _io - 1;
+    }
+}
+
+output a;

@@ -1,0 +1,62 @@
+; reg 0 alg="D L2 U' B2 U R2 F2 B2 U F2 L' B2 R' D2 L' R2 D2 R'" order=18
+; reg 1 alg="F2 U2 R2 B2 L2 D' L2 B2 R2 U F2" order=3
+; reg 2 alg="U L2 B2 R2 D2 L2 F2 R2 U" order=3
+; reg 3 alg="U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'" order=3
+1  U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'
+2  __while_cond_0:
+3  __zero_4:
+4  branch cycle(UF,UL,UB) __zero_done_5
+5  F2 U2 R2 B2 L2 D' L2 B2 R2 U F2
+6  goto __zero_4
+7  __zero_done_5:
+8  __move_6:
+9  branch cycle(UR,DF,DB) __move_done_7
+10  U' R2 F2 L2 D2 R2 B2 L2 U'
+11  F2 U2 R2 B2 L2 D' L2 B2 R2 U F2
+12  goto __move_6
+13  __move_done_7:
+14  branch cycle(UF,UL,UB) __cmp_restore_true_3
+15  __cmp_restore_false_loop_8:
+16  branch cycle(UF,UL,UB) __while_body_1
+17  F2 U' R2 B2 L2 D L2 B2 R2 U2 F2
+18  U L2 B2 R2 D2 L2 F2 R2 U
+19  goto __cmp_restore_false_loop_8
+20  __cmp_restore_true_3:
+21  __cmp_restore_true_loop_9:
+22  branch cycle(UF,UL,UB) __while_end_2
+23  F2 U' R2 B2 L2 D L2 B2 R2 U2 F2
+24  U L2 B2 R2 D2 L2 F2 R2 U
+25  goto __cmp_restore_true_loop_9
+26  __while_body_1:
+27  U L2 B2 R2 D2 L2 F2 R2 U
+28  __zero_10:
+29  branch cycle(UF,UL,UB) __zero_done_11
+30  F2 U2 R2 B2 L2 D' L2 B2 R2 U F2
+31  goto __zero_10
+32  __zero_done_11:
+33  __load_temp_12:
+34  branch cycle(UR,DF,DB) __load_temp_done_13
+35  F2 U2 R2 B2 L2 D' L2 B2 R2 U F2
+36  U' R2 F2 L2 D2 R2 B2 L2 U'
+37  goto __load_temp_12
+38  __load_temp_done_13:
+39  __add_variable_14:
+40  branch cycle(UF,UL,UB) __add_variable_done_15
+41  F2 U' R2 B2 L2 D L2 B2 R2 U2 F2
+42  U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'
+43  U L2 B2 R2 D2 L2 F2 R2 U
+44  goto __add_variable_14
+45  __add_variable_done_15:
+46  goto __while_cond_0
+47  __while_end_2:
+48  branch cycle(UF,DF,FL,FR,BL) __cond_true_16
+49  goto __cond_false_17
+50  __cond_true_16:
+51  U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'
+52  goto __cond_end_18
+53  __cond_false_17:
+54  F U' F2 B2 D F' D' F2 R2 B2 U2 F2 L2 F2 U'
+55  __cond_end_18:
+56  output (F U' F2 B2 D F' D' F2 R2 B2 U2 F2 L2 F2 U') (DL,DR,FL)
+57  input "enter alg: "
+58  output (R D2 L R2 D2 R B2 L F2 U' F2 B2 R2 U' B2 U L2 D') (UFL,UFR,UBL,UBR,DFL,DFR,DBL,DBR)

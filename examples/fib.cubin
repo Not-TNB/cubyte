@@ -1,0 +1,88 @@
+; reg 0 alg="D L2 U' B2 U R2 F2 B2 U F2 L' B2 R' D2 L' R2 D2 R'" order=18
+; reg 1 alg="U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R" order=4
+; reg 2 alg="B2 D B2 U B2 U' D2 R2 F2 U' L' R' F' D2 F' L' R'" order=4
+; reg 3 alg="F2 U' F2 U2 D' B2 U' L2 D F2 R U F' L2 F U' R'" order=4
+1  input "n: "
+2  F2 U' F2 U2 D' B2 U' L2 D F2 R U F' L2 F U' R'
+3  __while_cond_0:
+4  branch cycle(UFL,UFR,UBL,UBR,DFL,DFR,DBL,DBR) __cmp_restore_true_3
+5  goto __while_body_1
+6  __cmp_restore_true_3:
+7  goto __while_end_2
+8  __while_body_1:
+9  R D2 L R2 D2 R B2 L F2 U' F2 B2 R2 U' B2 U L2 D'
+10  branch cycle(UFL,UFR,UBL,UBR,DFL,DFR,DBL,DBR) __cmp_restore_true_7
+11  D L2 U' B2 U R2 F2 B2 U F2 L' B2 R' D2 L' R2 D2 R'
+12  goto __cond_true_4
+13  __cmp_restore_true_7:
+14  D L2 U' B2 U R2 F2 B2 U F2 L' B2 R' D2 L' R2 D2 R'
+15  goto __cond_false_5
+16  __cond_true_4:
+17  __zero_8:
+18  branch cycle(UF,UL,UR,UB) __zero_done_9
+19  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+20  goto __zero_8
+21  __zero_done_9:
+22  __load_temp_10:
+23  branch cycle(FL,FR,BL,BR) __load_temp_done_11
+24  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+25  R U F' L2 F U' R' F2 D' L2 U B2 U2 D F2 U F2
+26  goto __load_temp_10
+27  __load_temp_done_11:
+28  __add_variable_12:
+29  branch cycle(UF,UL,UR,UB) __add_variable_done_13
+30  L' R' F' U2 F L' R U' B2 U B2 L2 U' L2 B2 L2 U'
+31  B2 D B2 U B2 U' D2 R2 F2 U' L' R' F' D2 F' L' R'
+32  F2 U' F2 U2 D' B2 U' L2 D F2 R U F' L2 F U' R'
+33  goto __add_variable_12
+34  __add_variable_done_13:
+35  __zero_14:
+36  branch cycle(UF,UL,UR,UB) __zero_done_15
+37  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+38  goto __zero_14
+39  __zero_done_15:
+40  __load_temp_16:
+41  branch cycle(DF,DL,DR,DB) __load_temp_done_17
+42  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+43  L R F D2 F L R U F2 R2 U D2 B2 U' B2 D' B2
+44  goto __load_temp_16
+45  __load_temp_done_17:
+46  __add_variable_18:
+47  branch cycle(UF,UL,UR,UB) __add_variable_done_19
+48  L' R' F' U2 F L' R U' B2 U B2 L2 U' L2 B2 L2 U'
+49  F2 U' F2 U2 D' B2 U' L2 D F2 R U F' L2 F U' R'
+50  B2 D B2 U B2 U' D2 R2 F2 U' L' R' F' D2 F' L' R'
+51  goto __add_variable_18
+52  __add_variable_done_19:
+53  R D2 L R2 D2 R B2 L F2 U' F2 B2 R2 U' B2 U L2 D'
+54  R D2 L R2 D2 R B2 L F2 U' F2 B2 R2 U' B2 U L2 D'
+55  goto __cond_end_6
+56  __cond_false_5:
+57  __zero_20:
+58  branch cycle(DF,DL,DR,DB) __zero_done_21
+59  B2 D B2 U B2 U' D2 R2 F2 U' L' R' F' D2 F' L' R'
+60  goto __zero_20
+61  __zero_done_21:
+62  __zero_22:
+63  branch cycle(UF,UL,UR,UB) __zero_done_23
+64  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+65  goto __zero_22
+66  __zero_done_23:
+67  __load_temp_24:
+68  branch cycle(FL,FR,BL,BR) __load_temp_done_25
+69  U L2 B2 L2 U L2 B2 U' B2 U L R' F' U2 F L R
+70  R U F' L2 F U' R' F2 D' L2 U B2 U2 D F2 U F2
+71  goto __load_temp_24
+72  __load_temp_done_25:
+73  __add_variable_26:
+74  branch cycle(UF,UL,UR,UB) __add_variable_done_27
+75  L' R' F' U2 F L' R U' B2 U B2 L2 U' L2 B2 L2 U'
+76  B2 D B2 U B2 U' D2 R2 F2 U' L' R' F' D2 F' L' R'
+77  F2 U' F2 U2 D' B2 U' L2 D F2 R U F' L2 F U' R'
+78  goto __add_variable_26
+79  __add_variable_done_27:
+80  R D2 L R2 D2 R B2 L F2 U' F2 B2 R2 U' B2 U L2 D'
+81  __cond_end_6:
+82  goto __while_cond_0
+83  __while_end_2:
+84  output (L R F D2 F L R U F2 R2 U D2 B2 U' B2 D' B2) (DF,DL,DR,DB)

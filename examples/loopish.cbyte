@@ -1,0 +1,11 @@
+let int : 5 acc := 0;
+
+start:
+acc := acc + 1;
+if solved [UF, DF, FL, FR, BL] {
+    goto done;
+}
+goto start;
+
+done:
+output acc;

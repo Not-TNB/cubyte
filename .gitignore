@@ -1,0 +1,62 @@
+#ignore temp files
+*~
+
+#ignore pdf files (just keep source files)
+*.pdf
+
+#ignore junk files from latex output
+*.out
+*.log
+*.aux
+*.dvi
+*.ps
+
+#ignore junk files from compiling C code
+*.o
+*.a
+*.bin
+emulate
+assemble
+cubyte
+
+# ignore preprocessor output
+*-pp.cbyte
+
+#ignore junk files from compiling Haskell code
+*.hi
+
+#ignore junk files from compiling Java code
+*.class
+
+#ignore other junk files
+*.backup
+*.kate-swp
+*.swp
+*.snm
+*.vrb
+*.nav
+*.toc
+
+# .idea files
+/.idea
+
+# other stuff to ignore
+/.vscode
+.DS_Store
+compile_commands.json
+cmake-build-debug/
+.cache/
+.clangd
+
+# extension test binaries
+extension/tests/test_liveness_interference
+extension/tests/test_typechecker
+
+# Ignore generated .img files
+*.img
+
+# local extension planning/spec notes
+extension_spec.latex
+extension_spec.md
+
+cubyte.dSYM/

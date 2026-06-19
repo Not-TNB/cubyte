@@ -1,0 +1,18 @@
+let int : 5 a := 5; let int : 67 tristan := 126;
+let alg a := "R U R' U'" ++ "B R'";
+
+// Hello World
+                 // Hi let alg b := "R U R' U'";
+
+apply b;
+
+if solved [UFR] {
+    apply "R";
+} else {
+    apply "U (F (B2 R')7 ) (D F')3 L";
+    if tristan > 0 {
+        output tristan;
+    } else {
+        tristan := 2;
+    }
+}

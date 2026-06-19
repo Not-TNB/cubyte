@@ -1,0 +1,18 @@
+let int : 3 rounds := 0;
+let int : 3 score := 1;
+
+while not (rounds = 3) {
+    rounds := rounds + 1;
+    score := score + rounds;
+}
+
+if solved [UF, DF, FL, FR, BL] {
+    score := score + 1;
+} else {
+    score := score + 2;
+}
+
+output score;
+
+input "enter alg: ";
+output;

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cube Move Visualiser</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container">
+      <div id="playback-overlay">
+        <div id="move-display"></div>
+
+        <div id="playback-row">
+          <button id="reset-btn" title="Reset">⏮</button>
+          <button id="prev-btn" title="Previous move">◀</button>
+          <button id="play-pause-btn" title="Play/Pause">▶</button>
+          <button id="next-btn" title="Next move">▶|</button>
+        </div>
+
+        <div id="speed-row">
+          <label for="speed-slider">Speed</label>
+          <input id="speed-slider" type="range" min="150" max="1200" step="50" value="500">
+        </div>
+      </div>
+    </div>
+
+    <div id="sidebar">
+      <h2>Program</h2>
+      <textarea id="program-input" spellcheck="false">; reg 1 alg=&quot;R U R' U'&quot; order=6
+1  __loop_0:
+2  R U R' U'
+3  branch cycle() __loop_done_0
+4  goto __loop_0
+5  __loop_done_0:
+6  R U R' U'
+7  output (U R U' R') ()</textarea>
+      <div id="code-view" hidden></div>
+      <div id="run-row">
+        <button id="run-btn">Run</button>
+        <button id="run-line-btn">Run Line</button>
+      </div>
+      <div id="program-error"></div>
+      <div id="program-log"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

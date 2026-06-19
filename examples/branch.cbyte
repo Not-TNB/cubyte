@@ -1,0 +1,9 @@
+_io := 1;
+
+if solved [UF, DF, FL, FR, BL] {
+    _io := _io + 1;
+    output _io;
+} else {
+    _io := _io + 2;
+    output _io;
+}

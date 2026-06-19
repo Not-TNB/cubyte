@@ -1,0 +1,10 @@
+it would be better to have just declaration statements and assign
+e.g. let x : type; x = something
+rather than x : type = something
+idk it makes the code slightly cleaner
+
+
+conditions don't have to be of a strict form as we have there
+they could also be of weird forms like (x + 3 = y - 3)
+this is currently not even representable let alone handled
+

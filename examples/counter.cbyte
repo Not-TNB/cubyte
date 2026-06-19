@@ -1,0 +1,3 @@
+let int : 5 counter := 0;
+counter := counter + 1;
+output counter;
