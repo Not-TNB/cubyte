@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCube, disposeCube, applyMove } from './cube.js';
 import { parseAndBuildTrace, createInterpreter } from './program.js';
+import { simplifyTrace } from './simplify.js';
+import { traceToFacelets, kociembaSimplify } from './kociemba.js';
 
 // ---------------------------------------------------------------------------
 // DOM references
@@ -11,6 +13,7 @@ const container = document.getElementById('scene-container');
 const programInput = document.getElementById('program-input');
 const codeView = document.getElementById('code-view');
 const runBtn = document.getElementById('run-btn');
+const runSimplifiedBtn = document.getElementById('run-simplified-btn');
 const runLineBtn = document.getElementById('run-line-btn');
 const programError = document.getElementById('program-error');
 const programLog = document.getElementById('program-log');
@@ -19,7 +22,11 @@ const resetBtn = document.getElementById('reset-btn');
 const prevBtn = document.getElementById('prev-btn');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const nextBtn = document.getElementById('next-btn');
+const skipBtn = document.getElementById('skip-btn');
 const speedSlider = document.getElementById('speed-slider');
+const sidebarEl = document.getElementById('sidebar');
+const sidebarResizer = document.getElementById('sidebar-resizer');
+const moveDisplayResizer = document.getElementById('move-display-resizer');
 
 // ---------------------------------------------------------------------------
 // Scene / camera / renderer / controls
@@ -32,7 +39,7 @@ const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container
 camera.position.set(4.5, 4.5, 6);
 camera.lookAt(0, 0, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -51,11 +58,13 @@ const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
 fillLight.position.set(-5, -3, -4);
 scene.add(fillLight);
 
-window.addEventListener('resize', () => {
+function resizeRenderer() {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
-});
+}
+
+window.addEventListener('resize', resizeRenderer);
 
 function renderLoop() {
   requestAnimationFrame(renderLoop);
@@ -74,6 +83,18 @@ let log = []; // [{ afterTraceIndex, text }]
 let currentIndex = 0; // number of moves already applied to the cube
 let isPlaying = false;
 let isAnimating = false;
+let cancelCurrentMove = null; // cancel handle for the in-flight applyMove, if any
+let isSolving = false; // true while awaiting the kociemba server
+
+// Synchronously snaps and cleans up the in-flight animation so rebuildCube()
+// can safely dispose the scene without leaving orphaned pivot children.
+function abortAnimation() {
+  if (cancelCurrentMove) {
+    const fn = cancelCurrentMove;
+    cancelCurrentMove = null;
+    fn();
+  }
+}
 // Bumped by runProgram()/resetCube() so an in-flight stepNext/stepPrev that
 // was started by a previous program run can detect it's been superseded and
 // quietly abandon its post-animation bookkeeping instead of corrupting the
@@ -115,16 +136,20 @@ function updateButtonStates() {
   const atEnd = currentIndex >= parsedMoves.length;
   prevBtn.disabled = !hasMoves || currentIndex === 0 || isAnimating;
   nextBtn.disabled = !hasMoves || atEnd || isAnimating;
+  skipBtn.disabled = !hasMoves || atEnd || isAnimating;
   playPauseBtn.disabled = !hasMoves || (atEnd && !isPlaying);
   // Reset must stay clickable while the line emulator is active (it's the
   // only way back to editing) even though it never populates parsedMoves.
   resetBtn.disabled = !hasMoves && !lineInterpreter;
-  runLineBtn.disabled = isAnimating || (lineInterpreter !== null && lineInterpreter.done);
+  const busy = isSolving || isPlaying;
+  runBtn.disabled = busy;
+  runSimplifiedBtn.disabled = busy;
+  runLineBtn.disabled = busy || isAnimating || (lineInterpreter !== null && lineInterpreter.done);
 }
 
 function pausePlayback() {
   isPlaying = false;
-  playPauseBtn.textContent = '▶';
+  playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
 }
 
 // ---------------------------------------------------------------------------
@@ -215,10 +240,13 @@ async function runLine() {
   isAnimating = true;
   updateButtonStates();
 
-  const durationMs = Number(speedSlider.value);
+  const durationMs = 1230 - Number(speedSlider.value);
   const result = lineInterpreter.step();
   for (const move of result.moves) {
-    await applyMove(scene, cubies, move, durationMs);
+    const { promise, cancel } = applyMove(scene, cubies, move, durationMs);
+    cancelCurrentMove = cancel;
+    await promise;
+    cancelCurrentMove = null;
     if (myGeneration !== generation) return;
   }
   if (myGeneration !== generation) return;
@@ -231,8 +259,61 @@ async function runLine() {
   updateButtonStates();
 }
 
+async function runSimplifiedProgram() {
+  programError.textContent = '';
+  abortAnimation();
+  stopLineEmulator();
+
+  const result = parseAndBuildTrace(programInput.value);
+  if (result.errors.length > 0) {
+    programError.textContent = result.errors.map((e) => e.message).join('\n');
+    return;
+  }
+
+  const originalCount = result.trace.length;
+  isSolving = true;
+  runSimplifiedBtn.textContent = 'Solving…';
+  updateButtonStates();
+
+  let simplified;
+  let method;
+  try {
+    const facelets = traceToFacelets(result.trace);
+    simplified = await kociembaSimplify(facelets);
+    method = 'Kociemba';
+  } catch (_) {
+    simplified = simplifyTrace(result.trace);
+    method = 'Algebraic';
+  } finally {
+    isSolving = false;
+    runSimplifiedBtn.textContent = 'Run Simplified';
+    updateButtonStates();
+  }
+
+  const simplifiedCount = simplified.length;
+
+  pausePlayback();
+  generation++;
+  isAnimating = false;
+  parsedMoves = simplified;
+  // Show all I/O entries immediately (simplified moves don't share trace indices
+  // with the original program), then append the simplification summary.
+  log = [
+    ...result.log.map((e) => ({ afterTraceIndex: 0, text: e.text })),
+    { afterTraceIndex: 0, text: `${method}: ${originalCount} → ${simplifiedCount} moves` },
+  ];
+  currentIndex = 0;
+  rebuildCube();
+  renderMoveDisplay();
+  renderLog();
+  updateButtonStates();
+
+  togglePlay();
+}
+
 function runProgram() {
   programError.textContent = '';
+  abortAnimation();
   stopLineEmulator();
 
   const result = parseAndBuildTrace(programInput.value);
@@ -263,8 +344,11 @@ async function stepNext() {
   isAnimating = true;
   updateButtonStates();
 
-  const durationMs = Number(speedSlider.value);
-  await applyMove(scene, cubies, parsedMoves[currentIndex], durationMs);
+  const durationMs = 1230 - Number(speedSlider.value);
+  const { promise, cancel } = applyMove(scene, cubies, parsedMoves[currentIndex], durationMs);
+  cancelCurrentMove = cancel;
+  await promise;
+  cancelCurrentMove = null;
   // A Run/Reset click during the await already reset isAnimating/currentIndex
   // for the new program; don't stomp on that with this stale call's result.
   if (myGeneration !== generation) return;
@@ -288,7 +372,10 @@ async function stepPrev() {
   const targetIndex = currentIndex - 1;
   rebuildCube();
   for (let i = 0; i < targetIndex; i++) {
-    await applyMove(scene, cubies, parsedMoves[i], 0);
+    const { promise, cancel } = applyMove(scene, cubies, parsedMoves[i], 0);
+    cancelCurrentMove = cancel;
+    await promise;
+    cancelCurrentMove = null;
     if (myGeneration !== generation) return;
   }
   currentIndex = targetIndex;
@@ -299,7 +386,30 @@ async function stepPrev() {
   updateButtonStates();
 }
 
+async function skipToEnd() {
+  if (isAnimating || currentIndex >= parsedMoves.length) return;
+  const myGeneration = generation;
+  isAnimating = true;
+  pausePlayback();
+  updateButtonStates();
+
+  while (currentIndex < parsedMoves.length) {
+    const { promise, cancel } = applyMove(scene, cubies, parsedMoves[currentIndex], 0);
+    cancelCurrentMove = cancel;
+    await promise;
+    cancelCurrentMove = null;
+    if (myGeneration !== generation) return;
+    currentIndex++;
+  }
+
+  isAnimating = false;
+  renderMoveDisplay();
+  renderLog();
+  updateButtonStates();
+}
+
 function resetCube() {
+  abortAnimation();
   pausePlayback();
   generation++;
   isAnimating = false;
@@ -316,7 +426,7 @@ async function playLoop() {
     await stepNext();
   }
   isPlaying = false;
-  playPauseBtn.textContent = '▶';
+  playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
   updateButtonStates();
 }
 
@@ -330,7 +440,7 @@ function togglePlay() {
   if (currentIndex >= parsedMoves.length) return;
 
   isPlaying = true;
-  playPauseBtn.textContent = '⏸';
+  playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
   playLoop();
 }
 
@@ -339,10 +449,83 @@ function togglePlay() {
 // ---------------------------------------------------------------------------
 
 runBtn.addEventListener('click', runProgram);
+runSimplifiedBtn.addEventListener('click', runSimplifiedProgram);
 runLineBtn.addEventListener('click', runLine);
 nextBtn.addEventListener('click', stepNext);
+skipBtn.addEventListener('click', skipToEnd);
 prevBtn.addEventListener('click', stepPrev);
 resetBtn.addEventListener('click', resetCube);
 playPauseBtn.addEventListener('click', togglePlay);
 
 updateButtonStates();
+
+// ---------------------------------------------------------------------------
+// Resize handles
+// ---------------------------------------------------------------------------
+
+function makeDraggable(handle, onDrag) {
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = window.getComputedStyle(handle).cursor;
+
+    function onMove(e) { onDrag(e); }
+    function onUp() {
+      handle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+makeDraggable(sidebarResizer, (e) => {
+  const newWidth = Math.max(240, Math.min(900, window.innerWidth - e.clientX - 5));
+  sidebarEl.style.width = newWidth + 'px';
+  resizeRenderer();
+});
+
+makeDraggable(moveDisplayResizer, (e) => {
+  const overlayTop = moveDisplay.parentElement.getBoundingClientRect().top;
+  const newHeight = Math.max(24, Math.min(400, e.clientY - overlayTop - 14));
+  moveDisplay.style.height = newHeight + 'px';
+});
+
+// ---------------------------------------------------------------------------
+// Easter egg: type "jamie" while hovering the cube to toggle background image
+// ---------------------------------------------------------------------------
+
+const jamieBg = document.getElementById('jamie-bg');
+const jamieScroll = jamieBg.querySelector('.jamie-scroll');
+const sceneBgColor = scene.background;
+let jamieActive = false;
+let cursorInScene = false;
+let keyBuffer = '';
+
+function jamieScrollDuration() {
+  const v = Number(speedSlider.value);
+  const s = 10 - ((v - 30) / (1200 - 30)) * 9;
+  return s.toFixed(2) + 's';
+}
+
+speedSlider.addEventListener('input', () => {
+  if (jamieActive) jamieScroll.style.animationDuration = jamieScrollDuration();
+});
+
+container.addEventListener('mouseenter', () => { cursorInScene = true; });
+container.addEventListener('mouseleave', () => { cursorInScene = false; keyBuffer = ''; });
+
+document.addEventListener('keydown', (e) => {
+  if (!cursorInScene || e.key.length !== 1) return;
+  keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-5);
+  if (keyBuffer !== 'jamie') return;
+  keyBuffer = '';
+  jamieActive = !jamieActive;
+  scene.background = jamieActive ? null : sceneBgColor;
+  jamieBg.style.display = jamieActive ? 'block' : 'none';
+  if (jamieActive) jamieScroll.style.animationDuration = jamieScrollDuration();
+});

@@ -25,6 +25,34 @@ html, body {
 
 #scene-container canvas {
   display: block;
+  position: relative;
+  z-index: 1;
+}
+
+#jamie-bg {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.jamie-scroll {
+  width: 100%;
+  height: 200%;
+  animation: jamie-scroll 6s linear infinite;
+}
+
+.jamie-scroll img {
+  display: block;
+  width: 100%;
+  height: 50%;
+  object-fit: fill;
+}
+
+@keyframes jamie-scroll {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -51,7 +79,7 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-height: 96px;
+  height: 96px;
   overflow-y: auto;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 13px;
@@ -98,8 +126,36 @@ html, body {
 /* Sidebar (program editor, on the right)                                 */
 /* ---------------------------------------------------------------------- */
 
+#sidebar-resizer {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 5;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer.dragging {
+  background: rgba(74, 140, 255, 0.45);
+}
+
+#move-display-resizer {
+  height: 5px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  margin: 0 -16px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+#move-display-resizer:hover,
+#move-display-resizer.dragging {
+  background: rgba(74, 140, 255, 0.45);
+}
+
 #sidebar {
-  flex: 0 0 420px;
+  flex: 0 0 auto;
+  width: 420px;
   height: 100vh;
   padding: 16px;
   background: #14161c;
@@ -178,6 +234,12 @@ html, body {
 
 #run-row button {
   flex: 1;
+}
+
+button .material-icons {
+  font-size: 18px;
+  vertical-align: middle;
+  line-height: 1;
 }
 
 button {

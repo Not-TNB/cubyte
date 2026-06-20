@@ -132,7 +132,7 @@ done:
 
 ### Comments
 
-Both `//` and `--` introduce single-line comments.
+ `//` introduces single-line comments.
 
 ---
 
@@ -247,34 +247,58 @@ Instruction forms:
 
 ## The Visualiser
 
-Open `visualiser/index.html` in any modern browser — no server required.
-
 ![visualiser.png](readme_assets/visualiser.png)
+
+### Starting the visualiser
+
+For basic playback, open `visualiser/index.html` directly in any modern browser — no server required.
+
+To enable **Run Simplified** with full Kociemba optimisation, first build the solver and start the local server:
+
+```bash
+# Build the Kociemba binary (once)
+make -C third_party/ckociemba
+
+# Start the server
+node visualiser/server.js
+```
+
+Then open `http://localhost:3000` instead of the file directly.
 
 ### Loading a program
 
-Paste `.cubin` content directly into the **Program** text area on the right, or compile a source file and paste the result. The default program in the text area is a short working example you can run immediately.
+Paste `.cubin` content into the **Program** text area on the right, or compile a source file and paste the result. The default program in the text area is a short working example you can run immediately.
 
 ### Controls
 
 | Control | Action |
 |---|---|
-| **Run** | Execute the entire program at the current speed |
+| **Run** | Execute the entire program and animate every move |
+| **Run Simplified** | Compute the optimal equivalent move sequence, then animate it |
 | **Run Line** | Execute one instruction and pause |
-| **⏮ Reset** | Return the cube to solved and restart from line 1 |
-| **Speed slider** | Adjust move animation speed (150–1200 ms per move) |
+| **⏮ ‹ ▶ › ⏭** | Reset / previous move / play-pause / next move / skip to end |
+| **Speed slider** | Adjust animation speed |
+
+### Run Simplified
+
+**Run Simplified** executes the program, takes a snapshot of the resulting cube state, and finds the shortest sequence of moves that produces that same state.
+
+- If the local server is running, the Kociemba two-phase solver is used, guaranteeing an optimal (≤ 20 move) solution.
+- If the server is not reachable, the visualiser falls back to algebraic simplification: adjacent same-face moves are collapsed and opposite-face pairs are commuted into canonical order.
+
+The log panel shows which method was used and the before/after move count.
 
 ### What you see
 
 - The 3D cube on the left animates each move as the program runs.
-- The current instruction is highlighted in the program panel.
-- `input` statements pause execution and open a prompt for an algorithm string.
-- `output` prints the R0 repetition count to the log panel below the program.
-- Parse errors and runtime warnings appear in red in the log panel.
+- The move sequence is shown in the overlay panel; the current move is highlighted.
+- `input` statements pause execution and open a prompt for a value.
+- `output` prints the result to the log panel below the program.
+- Parse errors appear in red above the run buttons.
 
 ### Hand-written assembly
 
-You can write `.cubin` files by hand for experimentation. Declare any registers you use in manifest lines at the top, then write numbered instructions. The register panel (inside the visualiser) allows manual entry of register algorithms if you prefer to skip the manifest.
+You can write `.cubin` files by hand for experimentation. Declare registers in manifest lines at the top, then write numbered instructions. The default textarea content is a valid example to start from.
 
 ---
 

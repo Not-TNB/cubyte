@@ -1,0 +1,22 @@
+// Compute N^2 using repeated addition: N^2 = N + N + ... + N (N times).
+//
+// Register orders: N lives in an order-10 register (values 0..9, so N^2 <= 81).
+// The result register uses order 100, large enough for all inputs.
+//
+// _io is used as the loop counter so only two extra registers are needed (n and
+// result), keeping allocation tractable.
+
+input "N: ";
+
+let int:12 n      := 0;
+let int:12 result := 0;
+
+// Snapshot N before the counter loop consumes _io.
+n := _io;
+
+while not (_io = 0) {
+    result := result + n;
+    _io    := _io - 1;
+}
+
+output result;
