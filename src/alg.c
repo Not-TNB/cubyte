@@ -2,6 +2,8 @@
 #include "../include/cube.h"
 #include "../include/util.h"
 
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -77,7 +79,7 @@ char *alg_to_string(const Alg *a) {
         return s;
     }
 
-    char *s = malloc((size_t)(3 * a->len + 1));
+    char *s = malloc(3 * (size_t)a->len + 1);
     if (!s) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: alg_to_string");
     static const char face_chars[] = "UDLRFB";
     int pos = 0;
@@ -377,8 +379,13 @@ bool alg_parse(const char *text, Alg *out) {
             // Parse multiplier (digits after ')'; absent → 1)
             int mul = 1;
             if (tok[1] != '\0') {
-                mul = atoi(tok + 1);
-                if (mul <= 0) { ok = false; break; }
+                char *end;
+                errno = 0;
+                long v = strtol(tok + 1, &end, 10);
+                if (errno != 0 || *end != '\0' || v <= 0 || v > INT_MAX) {
+                    ok = false; break;
+                }
+                mul = (int)v;
             }
 
             // Pop inner alg and concat mul times into the new top of stack

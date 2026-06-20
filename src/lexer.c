@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <regex.h>
@@ -317,7 +319,15 @@ Token *next_token(Lexer *lexer) {
 
         if (all_digits) {
             token->type = TOK_INT_LIT;
-            token->int_val = atoi(token_text);
+            char *end;
+            errno = 0;
+            long v = strtol(token_text, &end, 10);
+            if (errno != 0 || *end != '\0' || v < INT_MIN || v > INT_MAX) {
+                die(EXIT_FAILURE, "Tokenization", token->line,
+                    "Integer literal out of range at column %d: %s\n",
+                    token->column, token_text);
+            }
+            token->int_val = (int)v;
             return token;
         }
 
