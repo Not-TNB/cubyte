@@ -1,0 +1,25 @@
+; reg 0 alg="B2 U D L2 B2 D2 R2 F2 U R U' R' D R U R" order=9
+; reg 1 alg="F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F" order=9
+; reg 2 alg="F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'" order=8
+; reg 3 alg="U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'" order=3
+1  input "n: "
+2  __while_cond_0:
+3  branch cycle(UFL,UFR,UBL,UBR) __cmp_restore_true_3
+4  goto __while_body_1
+5  __cmp_restore_true_3:
+6  goto __while_end_2
+7  __while_body_1:
+8  U F2 L2 F2 U2 B2 R2 F2 D F D' F2 B2 U F'
+9  branch cycle(DL,DR,FL) __cmp_restore_true_7
+10  goto __cond_false_5
+11  __cmp_restore_true_7:
+12  goto __cond_true_4
+13  __cond_true_4:
+14  F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'
+15  goto __cond_end_6
+16  __cond_false_5:
+17  __cond_end_6:
+18  R' U' R' D' R U R' U' F2 R2 D2 B2 L2 U' D' B2
+19  goto __while_cond_0
+20  __while_end_2:
+21  output (U L R' F D2 F' L R' U R2 D2 R2 U' L2 R2 U F2) (UF,UL,UR,UB,DF,DB)

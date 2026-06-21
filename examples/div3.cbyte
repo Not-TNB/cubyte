@@ -1,0 +1,23 @@
+// Compute floor(n / 3) by counting how many numbers from 1..n are divisible
+// by 3.
+//
+// The trick: phase has register order 3, so it naturally cycles 1→2→0→1→2→0
+// with no explicit modulo operation. Every time phase wraps back to 0, we've
+// hit a multiple of 3 and increment count.
+//
+// Result: floor(n/3). Exact for all n ≤ 8 (max count = 2 ≤ order 8).
+
+input "n: ";
+
+let int:3 phase := 0;
+let int:8 count := 0;
+
+while not (_io = 0) {
+    phase := phase + 1;
+    if (phase = 0) {
+        count := count + 1;
+    }
+    _io := _io - 1;
+}
+
+output count;
