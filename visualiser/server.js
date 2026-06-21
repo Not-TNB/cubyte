@@ -5,13 +5,16 @@
 
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 
 const PORT = 3000;
 const VISUALISER_DIR = __dirname;
 const KOCIEMBA_BIN = path.join(__dirname, '../third_party/ckociemba/bin/kociemba');
 const KOCIEMBA_CACHE = path.join(__dirname, '../third_party/ckociemba/cprunetables');
+const CUBYTE_BIN = path.join(__dirname, '../cubyte');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -25,6 +28,47 @@ const MIME = {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+
+  // ----- POST /compile -----
+  if (req.method === 'POST' && url.pathname === '/compile') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      const id = crypto.randomBytes(6).toString('hex');
+      const tmpBase = path.join(os.tmpdir(), `cubyte-${id}`);
+      const tmpSrc = tmpBase + '.cbyte';
+      const tmpOut = tmpBase + '.cubin';
+
+      fs.writeFile(tmpSrc, body, (writeErr) => {
+        if (writeErr) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end('Failed to write source file');
+          return;
+        }
+        execFile(CUBYTE_BIN, [tmpBase, tmpOut], (err, _stdout, stderr) => {
+          fs.unlink(tmpSrc, () => {});
+          fs.unlink(tmpBase + '-pp.cbyte', () => {});
+          if (err) {
+            fs.unlink(tmpOut, () => {});
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end(stderr.trim() || 'Compilation failed');
+            return;
+          }
+          fs.readFile(tmpOut, 'utf8', (readErr, data) => {
+            fs.unlink(tmpOut, () => {});
+            if (readErr) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Failed to read compiler output');
+              return;
+            }
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end(data);
+          });
+        });
+      });
+    });
+    return;
+  }
 
   // ----- POST /kociemba -----
   if (req.method === 'POST' && url.pathname === '/kociemba') {

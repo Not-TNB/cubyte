@@ -11,6 +11,8 @@ import { traceToFacelets, kociembaSimplify } from './kociemba.js';
 
 const container = document.getElementById('scene-container');
 const programInput = document.getElementById('program-input');
+const cubyteInput = document.getElementById('cubyte-input');
+const modeSelect = document.getElementById('mode-select');
 const codeView = document.getElementById('code-view');
 const runBtn = document.getElementById('run-btn');
 const runSimplifiedBtn = document.getElementById('run-simplified-btn');
@@ -84,7 +86,8 @@ let currentIndex = 0; // number of moves already applied to the cube
 let isPlaying = false;
 let isAnimating = false;
 let cancelCurrentMove = null; // cancel handle for the in-flight applyMove, if any
-let isSolving = false; // true while awaiting the kociemba server
+let isSolving = false;    // true while awaiting the kociemba server
+let isCompiling = false;  // true while awaiting the /compile endpoint
 
 // Synchronously snaps and cleans up the in-flight animation so rebuildCube()
 // can safely dispose the scene without leaving orphaned pivot children.
@@ -141,10 +144,10 @@ function updateButtonStates() {
   // Reset must stay clickable while the line emulator is active (it's the
   // only way back to editing) even though it never populates parsedMoves.
   resetBtn.disabled = !hasMoves && !lineInterpreter;
-  const busy = isSolving || isPlaying;
+  const busy = isCompiling || isSolving || isPlaying;
   runBtn.disabled = busy;
   runSimplifiedBtn.disabled = busy;
-  runLineBtn.disabled = busy || isAnimating || (lineInterpreter !== null && lineInterpreter.done);
+  runLineBtn.disabled = busy || isAnimating || modeSelect.value === 'cubyte' || (lineInterpreter !== null && lineInterpreter.done);
 }
 
 function pausePlayback() {
@@ -172,8 +175,39 @@ function showCodeView(text) {
 }
 
 function showTextarea() {
-  programInput.hidden = false;
+  const cubyte = modeSelect.value === 'cubyte';
+  programInput.hidden = cubyte;
+  cubyteInput.hidden = !cubyte;
   codeView.hidden = true;
+}
+
+// POST CuByte source to the server and return the compiled assembly text.
+// Throws with the compiler's error output if compilation fails.
+async function compileSource() {
+  const resp = await fetch('/compile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: cubyteInput.value,
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  return resp.text();
+}
+
+// Returns the assembly text to run: either the textarea directly (assembly
+// mode) or freshly compiled from the server (CuByte mode).
+async function getAssemblyText() {
+  if (modeSelect.value !== 'cubyte') return programInput.value;
+  isCompiling = true;
+  const prevText = runBtn.textContent;
+  runBtn.textContent = 'Compiling…';
+  updateButtonStates();
+  try {
+    return await compileSource();
+  } finally {
+    isCompiling = false;
+    runBtn.textContent = prevText;
+    updateButtonStates();
+  }
 }
 
 function highlightRow(row) {
@@ -211,7 +245,14 @@ async function runLine() {
 
   if (!lineInterpreter) {
     programError.textContent = '';
-    const init = createInterpreter(programInput.value);
+    let assemblyText;
+    try {
+      assemblyText = await getAssemblyText();
+    } catch (e) {
+      programError.textContent = e.message;
+      return;
+    }
+    const init = createInterpreter(assemblyText);
     if (init.errors.length > 0) {
       programError.textContent = init.errors.map((e) => e.message).join('\n');
       return;
@@ -228,7 +269,7 @@ async function runLine() {
     programLog.textContent = '';
 
     lineInterpreter = init.interpreter;
-    showCodeView(programInput.value);
+    showCodeView(assemblyText);
     highlightRow(lineInterpreter.currentRow);
     updateButtonStates();
     return;
@@ -264,7 +305,15 @@ async function runSimplifiedProgram() {
   abortAnimation();
   stopLineEmulator();
 
-  const result = parseAndBuildTrace(programInput.value);
+  let assemblyText;
+  try {
+    assemblyText = await getAssemblyText();
+  } catch (e) {
+    programError.textContent = e.message;
+    return;
+  }
+
+  const result = parseAndBuildTrace(assemblyText);
   if (result.errors.length > 0) {
     programError.textContent = result.errors.map((e) => e.message).join('\n');
     return;
@@ -311,12 +360,20 @@ async function runSimplifiedProgram() {
   togglePlay();
 }
 
-function runProgram() {
+async function runProgram() {
   programError.textContent = '';
   abortAnimation();
   stopLineEmulator();
 
-  const result = parseAndBuildTrace(programInput.value);
+  let assemblyText;
+  try {
+    assemblyText = await getAssemblyText();
+  } catch (e) {
+    programError.textContent = e.message;
+    return;
+  }
+
+  const result = parseAndBuildTrace(assemblyText);
   if (result.errors.length > 0) {
     programError.textContent = result.errors.map((e) => e.message).join('\n');
     return;
@@ -456,6 +513,12 @@ skipBtn.addEventListener('click', skipToEnd);
 prevBtn.addEventListener('click', stepPrev);
 resetBtn.addEventListener('click', resetCube);
 playPauseBtn.addEventListener('click', togglePlay);
+
+modeSelect.addEventListener('change', () => {
+  programError.textContent = '';
+  showTextarea();
+  updateButtonStates();
+});
 
 updateButtonStates();
 

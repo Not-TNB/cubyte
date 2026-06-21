@@ -166,6 +166,12 @@ html, body {
   overflow-y: auto;
 }
 
+#sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 #sidebar h2 {
   margin: 0;
   font-size: 15px;
@@ -173,7 +179,22 @@ html, body {
   color: #ccc;
 }
 
-#program-input {
+#mode-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #2a2d36;
+  color: #eee;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#mode-select:focus {
+  outline: 2px solid #4a8cff;
+}
+
+#program-input,
+#cubyte-input {
   flex: 1 1 auto;
   min-height: 220px;
   resize: vertical;
@@ -188,11 +209,13 @@ html, body {
   white-space: pre;
 }
 
-#program-input:focus {
+#program-input:focus,
+#cubyte-input:focus {
   outline: 2px solid #4a8cff;
 }
 
-#program-input[hidden] {
+#program-input[hidden],
+#cubyte-input[hidden] {
   display: none;
 }
 

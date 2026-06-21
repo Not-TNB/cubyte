@@ -265,9 +265,14 @@ node visualiser/server.js
 
 Then open `http://localhost:3000` instead of the file directly.
 
-### Loading a program
+### Input mode
 
-Paste `.cubin` content into the **Program** text area on the right, or compile a source file and paste the result. The default program in the text area is a short working example you can run immediately.
+A selector in the top-right of the program panel switches between two modes:
+
+- **CuBit Assembly** — paste `.cubin` content directly. Works offline with no server.
+- **CuByte Source** — write or paste `.cbyte` source. Requires the local server; the visualiser compiles it on the fly when you click Run. Compiler errors appear in the error panel below the run buttons. Run Line is not available in this mode.
+
+The default content in each mode is a working example you can run immediately.
 
 ### Controls
 
@@ -275,7 +280,7 @@ Paste `.cubin` content into the **Program** text area on the right, or compile a
 |---|---|
 | **Run** | Execute the entire program and animate every move |
 | **Run Simplified** | Compute the optimal equivalent move sequence, then animate it |
-| **Run Line** | Execute one instruction and pause |
+| **Run Line** | Execute one assembly instruction and pause (CuBit Assembly mode only) |
 | **⏮ ‹ ▶ › ⏭** | Reset / previous move / play-pause / next move / skip to end |
 | **Speed slider** | Adjust animation speed |
 

@@ -45,7 +45,13 @@
 
     <div id="sidebar-resizer"></div>
     <div id="sidebar">
-      <h2>Program</h2>
+      <div id="sidebar-header">
+        <h2>Program</h2>
+        <select id="mode-select">
+          <option value="assembly">CuBit Assembly</option>
+          <option value="cubyte">CuByte Source</option>
+        </select>
+      </div>
       <textarea id="program-input" spellcheck="false">; reg 1 alg=&quot;R U R' U'&quot; order=6
 1  __loop_0:
 2  R U R' U'
@@ -54,6 +60,21 @@
 5  __loop_done_0:
 6  R U R' U'
 7  output (U R U' R') ()</textarea>
+      <textarea id="cubyte-input" spellcheck="false" hidden>// Compute N^2 via repeated addition.
+// Enter a value for N when prompted (0-2 for order-8 registers).
+input &quot;N: &quot;;
+
+let int : 8 n      := 0;
+let int : 8 result := 0;
+
+n := _io;
+
+while not (_io = 0) {
+    result := result + n;
+    _io    := _io - 1;
+}
+
+output result;</textarea>
       <div id="code-view" hidden></div>
       <div id="run-row">
         <button id="run-btn">Run</button>
