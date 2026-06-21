@@ -64,6 +64,7 @@ typedef struct {
     bool dump_liveness;
     bool dump_ig;
     bool dump_regs;
+    bool dump_preprocessor;
 
     /*
      * Parsed for command-line compatibility with the spec. The public codegen
@@ -83,8 +84,8 @@ static void require_stage(const void *fn, const char *stage_name) {
 static void usage(const char *program_name) {
     die(EXIT_FAILURE, "main", 0,
         "Usage: %s [--dump-ast] [--dump-desugar] [--dump-cfg] "
-        "[--dump-liveness] [--dump-ig] [--dump-regs] [--physical] "
-        "<input.chl> <output.asm>",
+        "[--dump-liveness] [--dump-ig] [--dump-regs] [--dump-preprocessor] "
+        "[--physical] <input.cbyte> <output.s>",
         program_name);
 }
 
@@ -101,6 +102,8 @@ static bool parse_flag(MainOptions *opts, const char *arg) {
         opts->dump_ig = true;
     } else if (strcmp(arg, "--dump-regs") == 0) {
         opts->dump_regs = true;
+    } else if (strcmp(arg, "--dump-preprocessor") == 0) {
+        opts->dump_preprocessor = true;
     } else if (strcmp(arg, "--physical") == 0) {
         opts->physical = true;
     } else {
@@ -147,6 +150,54 @@ static void dump_program(const ProgramAST *program) {
     for (int i = 0; i < program->count; i++) {
         pretty_print_stmt(program->statements[i], 0);
     }
+}
+
+// Stream the preprocessor's <input-base>-pp.cbyte output to stdout. The
+// preprocessor always writes that file as part of parse_program; we just copy
+// it back out for inspection. Recomputes the suffix the same way parse_program
+// does, since preprocess() owns the write but not the resulting path string.
+static void dump_preprocessor_output(const char *input_file_name) {
+    static const char suffix[] = ".cbyte";
+    const size_t suffix_len = sizeof(suffix) - 1;
+    const size_t input_length = strlen(input_file_name);
+
+    if (input_length < suffix_len ||
+        strcmp(input_file_name + input_length - suffix_len, suffix) != 0) {
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            "dump-preprocessor: expected filename ending in '.cbyte', got '%s'",
+            input_file_name);
+    }
+
+    const size_t base_length = input_length - suffix_len;
+    char *preprocessed_path = malloc(base_length + sizeof("-pp.cbyte"));
+    if (preprocessed_path == NULL) {
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            "Malloc failed while building preprocessor output path");
+    }
+    memcpy(preprocessed_path, input_file_name, base_length);
+    strcpy(preprocessed_path + base_length, "-pp.cbyte");
+
+    FILE *input = fopen(preprocessed_path, "r");
+    if (input == NULL) {
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            "dump-preprocessor: failed to open '%s': %s",
+            preprocessed_path, strerror(errno));
+    }
+
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), input)) > 0) {
+        if (fwrite(buf, 1, n, stdout) != n) {
+            fclose(input);
+            free(preprocessed_path);
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                "dump-preprocessor: failed to write to stdout: %s",
+                strerror(errno));
+        }
+    }
+
+    fclose(input);
+    free(preprocessed_path);
 }
 
 static bool expr_uses_io_register(const Expr *expr) {
@@ -262,6 +313,9 @@ int main(int argc, char **argv) {
      */
     parsed_program = init_program_ast();
     parse_program(opts.input_file_name, parsed_program);
+    if (opts.dump_preprocessor) {
+        dump_preprocessor_output(opts.input_file_name);
+    }
     if (opts.dump_ast) {
         dump_program(parsed_program);
     }
