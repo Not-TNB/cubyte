@@ -120,13 +120,15 @@ function rebuildCube() {
 
 function renderMoveDisplay() {
   moveDisplay.innerHTML = '';
+  let activeSpan = null;
   parsedMoves.forEach((move, i) => {
     const span = document.createElement('span');
     span.textContent = move.raw;
     if (i < currentIndex) span.classList.add('done');
-    if (i === currentIndex) span.classList.add('active');
+    if (i === currentIndex) { span.classList.add('active'); activeSpan = span; }
     moveDisplay.appendChild(span);
   });
+  if (activeSpan) activeSpan.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function renderLog() {
