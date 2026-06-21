@@ -1,0 +1,15 @@
+// Smoke test for the preprocessor macro support.
+
+#define K 10
+#define J K
+#define algy(a, b) a ++ b
+#define empty()
+
+// K should be 10, J should be 10, algy(alg_a, alg_b) should become alg_a ++ alg_b.
+
+let int : 8 x := K;
+let int : 8 y := J;
+let int : 8 z := K + J;
+let alg alg_a := "R U";
+let alg alg_b := "R' U'";
+let int : 8 w := algy(alg_a, alg_b);
