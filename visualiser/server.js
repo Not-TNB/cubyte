@@ -12,9 +12,39 @@ const { execFile } = require('child_process');
 
 const PORT = 3000;
 const VISUALISER_DIR = __dirname;
+const PROJECT_ROOT = path.join(__dirname, '..');
 const KOCIEMBA_BIN = path.join(__dirname, '../third_party/ckociemba/bin/kociemba');
 const KOCIEMBA_CACHE = path.join(__dirname, '../third_party/ckociemba/cprunetables');
 const CUBYTE_BIN = path.join(__dirname, '../cubyte');
+
+// Run `make` (default target) in the project root to (re)build the cubyte
+// binary. Callback receives an Error (with stderr attached as .buildStderr)
+// on failure, or nothing on success.
+function buildCubyte(callback) {
+  console.log('Building cubyte (make)...');
+  execFile('make', [], { cwd: PROJECT_ROOT }, (err, stdout, stderr) => {
+    if (err) {
+      console.error('cubyte build failed:\n' + (stderr || err.message));
+      err.buildStderr = stderr;
+      callback(err);
+      return;
+    }
+    console.log('cubyte build succeeded.');
+    callback(null);
+  });
+}
+
+// Make sure CUBYTE_BIN exists and is executable before we try to run it.
+// If it's missing, build it first.
+function ensureCubyteBuilt(callback) {
+  fs.access(CUBYTE_BIN, fs.constants.X_OK, (err) => {
+    if (!err) {
+      callback(null);
+      return;
+    }
+    buildCubyte(callback);
+  });
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -45,24 +75,43 @@ const server = http.createServer((req, res) => {
           res.end('Failed to write source file');
           return;
         }
-        execFile(CUBYTE_BIN, [tmpBase, tmpOut], (err, _stdout, stderr) => {
-          fs.unlink(tmpSrc, () => {});
-          fs.unlink(tmpBase + '-pp.cbyte', () => {});
-          if (err) {
-            fs.unlink(tmpOut, () => {});
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end(stderr.trim() || 'Compilation failed');
+        ensureCubyteBuilt((buildErr) => {
+          if (buildErr) {
+            res.writeHead(500, {
+              'Content-Type': 'text/plain',
+              'Access-Control-Allow-Origin': '*',
+            });
+            res.end('Failed to build cubyte:\n' + (buildErr.buildStderr || buildErr.message));
             return;
           }
-          fs.readFile(tmpOut, 'utf8', (readErr, data) => {
-            fs.unlink(tmpOut, () => {});
-            if (readErr) {
-              res.writeHead(500, { 'Content-Type': 'text/plain' });
-              res.end('Failed to read compiler output');
+          execFile(CUBYTE_BIN, [tmpBase, tmpOut], (err, _stdout, stderr) => {
+            fs.unlink(tmpSrc, () => {});
+            fs.unlink(tmpBase + '-pp.cbyte', () => {});
+            if (err) {
+              fs.unlink(tmpOut, () => {});
+              res.writeHead(400, {
+                'Content-Type': 'text/plain',
+                'Access-Control-Allow-Origin': '*',
+              });
+              res.end(stderr.trim() || `Compilation failed: ${err.message}`);
               return;
             }
-            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end(data);
+            fs.readFile(tmpOut, 'utf8', (readErr, data) => {
+              fs.unlink(tmpOut, () => {});
+              if (readErr) {
+                res.writeHead(500, {
+                  'Content-Type': 'text/plain',
+                  'Access-Control-Allow-Origin': '*',
+                });
+                res.end('Failed to read compiler output');
+                return;
+              }
+              res.writeHead(200, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Access-Control-Allow-Origin': '*',
+              });
+              res.end(data);
+            });
           });
         });
       });
@@ -82,22 +131,22 @@ const server = http.createServer((req, res) => {
         return;
       }
       execFile(
-        KOCIEMBA_BIN,
-        [facelets],
-        { env: { ...process.env, CKOCIEMBA_CACHE: KOCIEMBA_CACHE } },
-        (err, stdout, stderr) => {
-          const out = stdout.trim();
-          if (err || !out || out.startsWith('Unsolvable')) {
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end(stderr.trim() || out || String(err));
-            return;
-          }
-          res.writeHead(200, {
-            'Content-Type': 'text/plain; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          });
-          res.end(out);
-        },
+          KOCIEMBA_BIN,
+          [facelets],
+          { env: { ...process.env, CKOCIEMBA_CACHE: KOCIEMBA_CACHE } },
+          (err, stdout, stderr) => {
+            const out = stdout.trim();
+            if (err || !out || out.startsWith('Unsolvable')) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end(stderr.trim() || out || String(err));
+              return;
+            }
+            res.writeHead(200, {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Access-Control-Allow-Origin': '*',
+            });
+            res.end(out);
+          },
       );
     });
     return;
@@ -129,4 +178,9 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Cubyte visualiser: http://localhost:${PORT}`);
   console.log(`Kociemba binary:   ${KOCIEMBA_BIN}`);
+  buildCubyte((err) => {
+    if (err) {
+      console.warn('Startup build of cubyte failed; will retry on first /compile request.');
+    }
+  });
 });
