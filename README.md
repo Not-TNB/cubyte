@@ -247,7 +247,7 @@ Instruction forms:
 
 ## The Visualiser
 
-![visualiser.png](readme_assets/visualiser.png)
+![visualiser.png](readme_assets/visualiser.png?v=2)
 
 ### Starting the visualiser
 
