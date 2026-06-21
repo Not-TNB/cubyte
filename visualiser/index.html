@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cube Move Visualiser</title>
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <script type="importmap">
   {
     "imports": {
@@ -17,25 +18,40 @@
 <body>
   <div id="app">
     <div id="scene-container">
+      <div id="jamie-bg">
+        <div class="jamie-scroll">
+          <img src="./jamie.jpg" alt="">
+          <img src="./jamie.jpg" alt="">
+        </div>
+      </div>
       <div id="playback-overlay">
         <div id="move-display"></div>
+        <div id="move-display-resizer"></div>
 
         <div id="playback-row">
-          <button id="reset-btn" title="Reset">⏮</button>
-          <button id="prev-btn" title="Previous move">◀</button>
-          <button id="play-pause-btn" title="Play/Pause">▶</button>
-          <button id="next-btn" title="Next move">▶|</button>
+          <button id="reset-btn" title="Reset"><span class="material-icons">first_page</span></button>
+          <button id="prev-btn" title="Previous move"><span class="material-icons">chevron_left</span></button>
+          <button id="play-pause-btn" title="Play/Pause"><span class="material-icons">play_arrow</span></button>
+          <button id="next-btn" title="Next move"><span class="material-icons">chevron_right</span></button>
+          <button id="skip-btn" title="Skip to end"><span class="material-icons">last_page</span></button>
         </div>
 
         <div id="speed-row">
           <label for="speed-slider">Speed</label>
-          <input id="speed-slider" type="range" min="150" max="1200" step="50" value="500">
+          <input id="speed-slider" type="range" min="30" max="1200" step="30" value="630">
         </div>
       </div>
     </div>
 
+    <div id="sidebar-resizer"></div>
     <div id="sidebar">
-      <h2>Program</h2>
+      <div id="sidebar-header">
+        <h2>Program</h2>
+        <select id="mode-select">
+          <option value="assembly">CuBit Assembly</option>
+          <option value="cubyte">CuByte Source</option>
+        </select>
+      </div>
       <textarea id="program-input" spellcheck="false">; reg 1 alg=&quot;R U R' U'&quot; order=6
 1  __loop_0:
 2  R U R' U'
@@ -44,9 +60,28 @@
 5  __loop_done_0:
 6  R U R' U'
 7  output (U R U' R') ()</textarea>
+      <div id="cubyte-editor" hidden>
+        <div id="cubyte-line-numbers"></div>
+        <textarea id="cubyte-input" spellcheck="false">// Compute N^2 via repeated addition.
+// Enter a value for N when prompted (0-2 for order-8 registers).
+input &quot;N: &quot;;
+
+let int : 8 n      := 0;
+let int : 8 result := 0;
+
+n := _io;
+
+while not (_io = 0) {
+    result := result + n;
+    _io    := _io - 1;
+}
+
+output result;</textarea>
+      </div>
       <div id="code-view" hidden></div>
       <div id="run-row">
         <button id="run-btn">Run</button>
+        <button id="run-simplified-btn" title="Optimally simplify via Kociemba (falls back to algebraic if server not running)">Run Simplified</button>
         <button id="run-line-btn">Run Line</button>
       </div>
       <div id="program-error"></div>

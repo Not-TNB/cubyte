@@ -85,34 +85,6 @@ function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
 }
 
-// Resolves once the pivot's rotation has been driven from 0 to targetRad
-// over durationMs (or instantly, if durationMs <= 0).
-function animateRotation(pivot, axis, targetRad, durationMs) {
-  if (durationMs <= 0) {
-    pivot.rotation[axis] = targetRad;
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    const start = performance.now();
-
-    function step(now) {
-      const elapsed = now - start;
-      const t = Math.min(elapsed / durationMs, 1);
-      pivot.rotation[axis] = targetRad * easeInOutQuad(t);
-
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
-        pivot.rotation[axis] = targetRad;
-        resolve();
-      }
-    }
-
-    requestAnimationFrame(step);
-  });
-}
-
 // Rounds a mesh's orientation to the nearest exact 90deg-aligned rotation,
 // eliminating floating-point drift accumulated across repeated turns. Valid
 // because every orientation this cube can reach is one of the 24 rotations
@@ -130,7 +102,11 @@ function snapMeshOrientation(mesh) {
 // under a temporary pivot, rotates the pivot (animated unless durationMs is
 // 0), re-parents back to the scene, then updates each cubie's logical grid
 // coordinates and snaps both position and orientation to remove drift.
-async function applyMove(scene, cubies, move, durationMs) {
+//
+// Returns { promise, cancel }. Calling cancel() synchronously snaps the
+// rotation to its final value, re-parents cubies back to the scene, removes
+// the pivot, and resolves the promise — safe to call before rebuildCube().
+function applyMove(scene, cubies, move, durationMs) {
   const { face } = move;
   const axis = AXIS[face];
   const angleDeg = angleDegFor(move);
@@ -143,21 +119,54 @@ async function applyMove(scene, cubies, move, durationMs) {
     pivot.attach(cubie.mesh);
   }
 
-  await animateRotation(pivot, axis, targetRad, durationMs);
+  let resolve_;
+  let rafId = null;
+  let settled = false;
 
-  for (const cubie of layerCubies) {
-    scene.attach(cubie.mesh);
-  }
-  scene.remove(pivot);
-
-  const steps = stepsFor(move);
-  for (const cubie of layerCubies) {
-    for (let i = 0; i < steps; i++) {
-      rotateVectorStep(cubie, axis);
+  // finish() is idempotent: snaps the pivot, re-parents cubies, updates state.
+  // Called either when the animation completes naturally or via cancel().
+  function finish() {
+    if (settled) return;
+    settled = true;
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    pivot.rotation[axis] = targetRad;
+    for (const cubie of layerCubies) {
+      scene.attach(cubie.mesh);
     }
-    cubie.mesh.position.set(cubie.x * SPACING, cubie.y * SPACING, cubie.z * SPACING);
-    snapMeshOrientation(cubie.mesh);
+    scene.remove(pivot);
+    const steps = stepsFor(move);
+    for (const cubie of layerCubies) {
+      for (let i = 0; i < steps; i++) {
+        rotateVectorStep(cubie, axis);
+      }
+      cubie.mesh.position.set(cubie.x * SPACING, cubie.y * SPACING, cubie.z * SPACING);
+      snapMeshOrientation(cubie.mesh);
+    }
+    resolve_();
   }
+
+  const promise = new Promise((resolve) => {
+    resolve_ = resolve;
+    if (durationMs <= 0) {
+      finish();
+    } else {
+      const start = performance.now();
+      function step(now) {
+        if (settled) return;
+        const elapsed = now - start;
+        const t = Math.min(elapsed / durationMs, 1);
+        pivot.rotation[axis] = targetRad * easeInOutQuad(t);
+        if (t < 1) {
+          rafId = requestAnimationFrame(step);
+        } else {
+          finish();
+        }
+      }
+      rafId = requestAnimationFrame(step);
+    }
+  });
+
+  return { promise, cancel: finish };
 }
 
 export { createCube, disposeCube, applyMove, getLayerCubies };

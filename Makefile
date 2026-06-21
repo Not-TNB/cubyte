@@ -33,7 +33,10 @@ EXT_SRC = \
 
 .PHONY: all clean test-desugarer
 
-all: $(EXT_BIN)
+all: $(EXT_BIN) kociemba
+
+kociemba:
+	$(MAKE) -C $(CKOCIEMBA_DIR)
 
 $(EXT_BIN): $(EXT_SRC)
 	$(CC) $(CFLAGS) $(IFLAGS) $(KOCIEMBA_PATH_FLAGS) $^ -o $@

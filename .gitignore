@@ -18,6 +18,7 @@
 emulate
 assemble
 cubyte
+third_party/ckociemba/bin/kociemba
 
 # ignore preprocessor output
 *-pp.cbyte

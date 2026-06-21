@@ -1,0 +1,56 @@
+; reg 0 alg="B2 U D L2 B2 D2 R2 F2 U R U' R' D R U R" order=9
+; reg 1 alg="F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F" order=9
+; reg 2 alg="F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'" order=8
+; reg 3 alg="U D' L2 B2 D2 F2 R2 F2 U' D' L' F B D' F B' R U2 R'" order=8
+1  input "N: "
+2  __zero_0:
+3  branch cycle(UF,UL,UR,UB,DF,DB) __zero_done_1
+4  F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'
+5  goto __zero_0
+6  __zero_done_1:
+7  __zero_2:
+8  branch cycle(DFL,DFR,DBL,DBR) __zero_done_3
+9  F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F
+10  goto __zero_2
+11  __zero_done_3:
+12  __load_temp_4:
+13  branch cycle(UFL,UFR,UBL,UBR) __load_temp_done_5
+14  F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F
+15  R' U' R' D' R U R' U' F2 R2 D2 B2 L2 U' D' B2
+16  goto __load_temp_4
+17  __load_temp_done_5:
+18  __add_variable_6:
+19  branch cycle(DFL,DFR,DBL,DBR) __add_variable_done_7
+20  F' U F' D2 F U' F D' L2 F2 D' L2 D F2 L2 D' F2
+21  F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'
+22  B2 U D L2 B2 D2 R2 F2 U R U' R' D R U R
+23  goto __add_variable_6
+24  __add_variable_done_7:
+25  __while_cond_8:
+26  branch cycle(UFL,UFR,UBL,UBR) __cmp_restore_true_11
+27  goto __while_body_9
+28  __cmp_restore_true_11:
+29  goto __while_end_10
+30  __while_body_9:
+31  __zero_12:
+32  branch cycle(DFL,DFR,DBL,DBR) __zero_done_13
+33  F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F
+34  goto __zero_12
+35  __zero_done_13:
+36  __load_temp_14:
+37  branch cycle(UF,UL,UR,UB,DF,DB) __load_temp_done_15
+38  F2 D L2 F2 D' L2 D F2 L2 D F' U F' D2 F U' F
+39  U L R' F D2 F' L R' U R2 D2 R2 U' L2 R2 U F2
+40  goto __load_temp_14
+41  __load_temp_done_15:
+42  __add_variable_16:
+43  branch cycle(DFL,DFR,DBL,DBR) __add_variable_done_17
+44  F' U F' D2 F U' F D' L2 F2 D' L2 D F2 L2 D' F2
+45  U D' L2 B2 D2 F2 R2 F2 U' D' L' F B D' F B' R U2 R'
+46  F2 U' L2 R2 U R2 D2 R2 U' L' R F D2 F' L' R U'
+47  goto __add_variable_16
+48  __add_variable_done_17:
+49  R' U' R' D' R U R' U' F2 R2 D2 B2 L2 U' D' B2
+50  goto __while_cond_8
+51  __while_end_10:
+52  output (R U2 R' F' B D F' B' L U D F2 R2 F2 D2 B2 L2 U' D) (DL,DR,FL,FR,BL,BR)
