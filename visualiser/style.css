@@ -193,8 +193,7 @@ html, body {
   outline: 2px solid #4a8cff;
 }
 
-#program-input,
-#cubyte-input {
+#program-input {
   flex: 1 1 auto;
   min-height: 220px;
   resize: vertical;
@@ -209,14 +208,57 @@ html, body {
   white-space: pre;
 }
 
-#program-input:focus,
-#cubyte-input:focus {
+#program-input:focus {
   outline: 2px solid #4a8cff;
 }
 
-#program-input[hidden],
-#cubyte-input[hidden] {
+#program-input[hidden] {
   display: none;
+}
+
+#cubyte-editor {
+  flex: 1 1 auto;
+  min-height: 220px;
+  resize: vertical;
+  overflow: hidden;
+  display: flex;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0f1116;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+#cubyte-editor:focus-within {
+  outline: 2px solid #4a8cff;
+}
+
+#cubyte-editor[hidden] {
+  display: none;
+}
+
+#cubyte-line-numbers {
+  padding: 10px 8px 10px 10px;
+  text-align: right;
+  color: #555;
+  user-select: none;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#cubyte-input {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #eee;
+  white-space: pre;
+  resize: none;
+  outline: none;
+  overflow: auto;
 }
 
 /* Read-only line-by-line view shown while the line emulator is active,

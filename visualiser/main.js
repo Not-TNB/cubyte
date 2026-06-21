@@ -11,6 +11,8 @@ import { traceToFacelets, kociembaSimplify } from './kociemba.js';
 
 const container = document.getElementById('scene-container');
 const programInput = document.getElementById('program-input');
+const cubyteEditor = document.getElementById('cubyte-editor');
+const cubyteLineNumbers = document.getElementById('cubyte-line-numbers');
 const cubyteInput = document.getElementById('cubyte-input');
 const modeSelect = document.getElementById('mode-select');
 const codeView = document.getElementById('code-view');
@@ -174,10 +176,19 @@ function showCodeView(text) {
   codeView.hidden = false;
 }
 
+function updateLineNumbers() {
+  const count = cubyteInput.value.split('\n').length;
+  cubyteLineNumbers.innerHTML = Array.from(
+    { length: count },
+    (_, i) => `<div>${i + 1}</div>`
+  ).join('');
+  cubyteLineNumbers.scrollTop = cubyteInput.scrollTop;
+}
+
 function showTextarea() {
   const cubyte = modeSelect.value === 'cubyte';
   programInput.hidden = cubyte;
-  cubyteInput.hidden = !cubyte;
+  cubyteEditor.hidden = !cubyte;
   codeView.hidden = true;
 }
 
@@ -517,9 +528,14 @@ playPauseBtn.addEventListener('click', togglePlay);
 modeSelect.addEventListener('change', () => {
   programError.textContent = '';
   showTextarea();
+  if (modeSelect.value === 'cubyte') updateLineNumbers();
   updateButtonStates();
 });
 
+cubyteInput.addEventListener('input', updateLineNumbers);
+cubyteInput.addEventListener('scroll', () => { cubyteLineNumbers.scrollTop = cubyteInput.scrollTop; });
+
+updateLineNumbers();
 updateButtonStates();
 
 // ---------------------------------------------------------------------------
