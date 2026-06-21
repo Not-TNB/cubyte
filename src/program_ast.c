@@ -1049,13 +1049,25 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 void parse_program(const char *input_file_name, ProgramAST *ast) {
     preprocess(input_file_name);
 
-    char *preprocessed_out_filename = malloc(strlen(input_file_name) + 20);
+    static const char suffix[] = ".cbyte";
+    const size_t suffix_len = sizeof(suffix) - 1;
+    const size_t input_length = strlen(input_file_name);
+
+    if (input_length < suffix_len ||
+        strcmp(input_file_name + input_length - suffix_len, suffix) != 0) {
+        die(EXIT_FAILURE, "parser", 0,
+            "parse_program: expected filename ending in '.cbyte', got '%s'",
+            input_file_name);
+    }
+
+    const size_t base_length = input_length - suffix_len;
+    char *preprocessed_out_filename = malloc(base_length + sizeof("-pp.cbyte"));
     if (preprocessed_out_filename == NULL) {
         die(EXIT_FAILURE, "parser", 0, "Malloc failed");
     }
 
-    strcpy(preprocessed_out_filename, input_file_name);
-    strcat(preprocessed_out_filename, "-pp.cbyte");
+    memcpy(preprocessed_out_filename, input_file_name, base_length);
+    strcpy(preprocessed_out_filename + base_length, "-pp.cbyte");
 
     FILE *input = fopen(preprocessed_out_filename, "r");
 
