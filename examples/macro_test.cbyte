@@ -12,4 +12,4 @@ let int : 8 y := J;
 let int : 8 z := K + J;
 let alg alg_a := "R U";
 let alg alg_b := "R' U'";
-let int : 8 w := algy(alg_a, alg_b);
+let alg w := algy(alg_a, alg_b);

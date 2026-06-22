@@ -62,7 +62,9 @@
 7  output (U R U' R') ()</textarea>
       <div id="cubyte-editor" hidden>
         <div id="cubyte-line-numbers"></div>
-        <textarea id="cubyte-input" spellcheck="false">// Compute N^2 via repeated addition.
+        <div id="cubyte-input-wrap">
+          <pre id="cubyte-highlight" aria-hidden="true"></pre>
+          <textarea id="cubyte-input" spellcheck="false">// Compute N^2 via repeated addition.
 // Enter a value for N when prompted (0-2 for order-8 registers).
 input &quot;N: &quot;;
 
@@ -77,6 +79,7 @@ while not (_io = 0) {
 }
 
 output result;</textarea>
+        </div>
       </div>
       <div id="code-view" hidden></div>
       <div id="run-row">

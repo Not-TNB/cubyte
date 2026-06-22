@@ -5,6 +5,7 @@ import { parseAndBuildTrace, createInterpreter, computeAllRegisterValues } from 
 import { createPieceState, applyMoveToPieces } from './pieces.js';
 import { simplifyTrace } from './simplify.js';
 import { traceToFacelets, kociembaSimplify } from './kociemba.js';
+import { loadCuByteHighlighter } from './cubyte-highlight.js';
 
 // ---------------------------------------------------------------------------
 // DOM references
@@ -15,6 +16,7 @@ const programInput = document.getElementById('program-input');
 const cubyteEditor = document.getElementById('cubyte-editor');
 const cubyteLineNumbers = document.getElementById('cubyte-line-numbers');
 const cubyteInput = document.getElementById('cubyte-input');
+const cubyteHighlight = document.getElementById('cubyte-highlight');
 const modeSelect = document.getElementById('mode-select');
 const codeView = document.getElementById('code-view');
 const registerView = document.getElementById('register-view');
@@ -232,6 +234,48 @@ function updateLineNumbers() {
     (_, i) => `<div>${i + 1}</div>`
   ).join('');
   cubyteLineNumbers.scrollTop = cubyteInput.scrollTop;
+}
+
+// ---------------------------------------------------------------------------
+// Syntax highlighting
+// ---------------------------------------------------------------------------
+
+// Cached highlighter function from cubyte-highlight.js, or null if the
+// grammar couldn't be loaded (e.g. opened via file://). When null, the
+// overlay just mirrors the textarea's plain text so the user still sees
+// their input — just without colour.
+let highlightCuByte = null;
+const highlighterReady = loadCuByteHighlighter().then((fn) => { highlightCuByte = fn; });
+
+// Renders the highlighted HTML into the overlay element and keeps the
+// overlay's scrollTop in sync with the textarea. Called on every input
+// and on textarea scroll, so the highlight scrolls together with the
+// caret.
+function refreshHighlight() {
+  // Trailing newline append: most editors visually render a trailing
+  // newline as an extra blank line. We do the same so the overlay's
+  // height matches the textarea's content height exactly.
+  const text = cubyteInput.value;
+  if (highlightCuByte) {
+    cubyteHighlight.innerHTML = highlightCuByte(text + '\n');
+  } else {
+    // Fallback: mirror the text as escaped plain HTML so the textarea
+    // (which is now colour-transparent) doesn't appear empty.
+    let escaped = '';
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '&') escaped += '&amp;';
+      else if (c === '<') escaped += '&lt;';
+      else if (c === '>') escaped += '&gt;';
+      else escaped += c;
+    }
+    cubyteHighlight.innerHTML = escaped + '\n';
+  }
+  // Sync the overlay's scroll position to the textarea's. The textarea
+  // is the source of truth for scroll because that's what the user
+  // interacts with.
+  cubyteHighlight.scrollTop = cubyteInput.scrollTop;
+  cubyteHighlight.scrollLeft = cubyteInput.scrollLeft;
 }
 
 function showTextarea() {
@@ -607,8 +651,17 @@ modeSelect.addEventListener('change', () => {
   updateButtonStates();
 });
 
-cubyteInput.addEventListener('input', updateLineNumbers);
-cubyteInput.addEventListener('scroll', () => { cubyteLineNumbers.scrollTop = cubyteInput.scrollTop; });
+cubyteInput.addEventListener('input', () => {
+  updateLineNumbers();
+  refreshHighlight();
+});
+cubyteInput.addEventListener('scroll', () => {
+  cubyteLineNumbers.scrollTop = cubyteInput.scrollTop;
+  cubyteHighlight.scrollTop = cubyteInput.scrollTop;
+  cubyteHighlight.scrollLeft = cubyteInput.scrollLeft;
+});
+
+highlighterReady.then(() => refreshHighlight());
 
 updateLineNumbers();
 updateButtonStates();

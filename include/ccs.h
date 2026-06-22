@@ -142,8 +142,12 @@ typedef bool (*CCSAssignCB)(
  * Enumerate ways to assign disjoint pieces to the cycles of *arch, calling
  * cb(cycles, num_regs, ctx) for each. Stops early once cb returns false.
  * Returns the number of assignments passed to cb (including the stopping one).
+ *
+ * forbidden: pieces pre-marked as unavailable (e.g. claimed by other registers).
+ * Pass CYCLESET_EMPTY to allow all pieces.
  */
 int ccs_enumerate_assignments(const CCFArchitecture *arch,
+                              CycleSet forbidden,
                               CCSAssignCB cb, void *ctx);
 
 /*
