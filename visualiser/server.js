@@ -50,6 +50,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js':   'application/javascript; charset=utf-8',
   '.css':  'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.jpg':  'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png':  'image/png',
@@ -84,7 +85,7 @@ const server = http.createServer((req, res) => {
             res.end('Failed to build cubyte:\n' + (buildErr.buildStderr || buildErr.message));
             return;
           }
-          execFile(CUBYTE_BIN, [tmpBase, tmpOut], (err, _stdout, stderr) => {
+          execFile(CUBYTE_BIN, [tmpSrc, tmpOut], (err, _stdout, stderr) => {
             fs.unlink(tmpSrc, () => {});
             fs.unlink(tmpBase + '-pp.cbyte', () => {});
             if (err) {

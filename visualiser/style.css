@@ -248,18 +248,96 @@ html, body {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Wrapper for the textarea + highlight overlay. The overlay technique
+   stacks a <pre> with coloured HTML behind a transparent textarea; the
+   textarea still receives all keyboard/IME input and shows the caret. */
+#cubyte-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+#cubyte-highlight,
 #cubyte-input {
   flex: 1;
   min-height: 0;
+  margin: 0;
   padding: 10px 12px;
-  border: none;
-  background: transparent;
-  color: #eee;
+  border: 0;
+  font: inherit;
+  /* Both elements must use identical font metrics and disable text
+     wrapping so the highlighted text and the caret position line up
+     character-for-character. */
   white-space: pre;
+  overflow: auto;
+  word-wrap: normal;
+  word-break: normal;
+  tab-size: 4;
+  /* Identical line-box metrics: explicit line-height on both keeps the
+     overlay's wrapped lines aligned with the textarea's caret rows. */
+  line-height: 1.5;
+}
+
+#cubyte-highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #eee;
+  background: transparent;
+}
+
+#cubyte-input {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: #eee;
   resize: none;
   outline: none;
-  overflow: auto;
+  z-index: 1;
 }
+
+/* ---------------------------------------------------------------------- */
+/* CuByte syntax highlighting colour scheme                                */
+/* ---------------------------------------------------------------------- */
+/* Classes are generated from the TextMate scope names in                 */
+/* cubyte.tmLanguage.json. The "cbyte-" prefix is fixed; the rest is the  */
+/* first two scope segments joined with "-". See cubyte-highlight.js.     */
+
+.cbyte-comment { color: #6a737d; font-style: italic; }
+.cbyte-string  { color: #b8bb26; }
+
+.cbyte-meta-preprocessor        { color: #d75f5f; }
+.cbyte-keyword-control-directive-define { color: #d75f5f; font-weight: 600; }
+.cbyte-entity-name-function-preprocessor { color: #fbbf24; }
+.cbyte-variable-parameter-preprocessor   { color: #fbbf24; }
+
+.cbyte-constant-language        { color: #fbbf24; font-weight: 600; }
+
+.cbyte-keyword-control          { color: #c678dd; font-weight: 600; }
+.cbyte-keyword-other            { color: #c678dd; }
+
+.cbyte-storage-type             { color: #4a8cff; }
+.cbyte-storage-modifier         { color: #c678dd; font-weight: 600; }
+
+.cbyte-keyword-operator-assignment  { color: #d75f5f; font-weight: 600; }
+.cbyte-keyword-operator-logical     { color: #d75f5f; }
+.cbyte-keyword-operator-comparison  { color: #d75f5f; }
+.cbyte-keyword-operator-arithmetic  { color: #d75f5f; }
+.cbyte-keyword-operator-colon       { color: #888; }
+
+.cbyte-constant-numeric         { color: #d19a66; }
+
+.cbyte-variable-other           { color: #eee; }
+
+.cbyte-punctuation-definition-block-begin,
+.cbyte-punctuation-definition-block-end,
+.cbyte-punctuation-separator-comma,
+.cbyte-punctuation-terminator-statement,
+.cbyte-punctuation-section-brackets-begin,
+.cbyte-punctuation-section-brackets-end,
+.cbyte-punctuation-section-parens-begin,
+.cbyte-punctuation-section-parens-end { color: #888; }
 
 /* Read-only line-by-line view shown while the line emulator is active,
    occupying the same slot as #program-input (which gets [hidden] instead). */
