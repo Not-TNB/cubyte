@@ -246,6 +246,9 @@ html, body {
   overflow: hidden;
   flex-shrink: 0;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 #cubyte-input {
@@ -259,6 +262,9 @@ html, body {
   resize: none;
   outline: none;
   overflow: auto;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Read-only line-by-line view shown while the line emulator is active,

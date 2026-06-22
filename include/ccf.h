@@ -127,6 +127,26 @@ void ccf_run(CCFResult *out);
 /* Release all memory owned by *result and zero it. */
 void ccf_free(CCFResult *result);
 
+/*
+ * A single achievable single-register template: the cheapest (fewest pieces)
+ * realisation of a given order, as found by ccf_run's internal enumeration.
+ * corner_cost / edge_cost are the piece counts consumed in each orbit.
+ */
+typedef struct {
+    CCFCycle cycles[CCF_MAX_CYCLES_PER_REG];
+    int      num_cycles;
+    int      order;
+    int      corner_cost;
+    int      edge_cost;
+} CCFTemplate;
+
+/*
+ * Fill out[] with one CCFTemplate per achievable order (order > 1).
+ * Returns the number written; cap is the buffer size.
+ * cube_init() must have been called first.
+ */
+int ccf_enumerate_templates(CCFTemplate *out, int cap);
+
 
 /*
  * Step 2: given the prime powers from step 1, fill out[] with all achievable

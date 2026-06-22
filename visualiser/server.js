@@ -84,7 +84,7 @@ const server = http.createServer((req, res) => {
             res.end('Failed to build cubyte:\n' + (buildErr.buildStderr || buildErr.message));
             return;
           }
-          execFile(CUBYTE_BIN, [tmpBase, tmpOut], (err, _stdout, stderr) => {
+          execFile(CUBYTE_BIN, [tmpSrc, tmpOut], (err, _stdout, stderr) => {
             fs.unlink(tmpSrc, () => {});
             fs.unlink(tmpBase + '-pp.cbyte', () => {});
             if (err) {
