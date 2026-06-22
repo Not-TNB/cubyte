@@ -31,7 +31,7 @@ static bool pf_ready = false;
 static int face_primary_rank(int face) {
     if (face == 0 || face == 1) return 0; /* U/D */
     if (face == 4 || face == 5) return 1; /* F/B */
-    return 2;                              /* L/R */
+    return 2;                             /* L/R */
 }
 
 /* Trace one cubie through every position reachable by face moves, recording a
@@ -96,12 +96,15 @@ static void build_corner_frame(int p, const int slots[3]) {
     face_normal(ord[0]/8, n0); face_normal(ord[1]/8, n1); face_normal(ord[2]/8, n2);
     int cx = n0[1]*n1[2]-n0[2]*n1[1], cy = n0[2]*n1[0]-n0[0]*n1[2], cz = n0[0]*n1[1]-n0[1]*n1[0];
     int trip = cx*n2[0]+cy*n2[1]+cz*n2[2];
-    /* The cube's corner-orientation convention is measured about the global U-D
-     * axis, viewed from a single side, so D-primary corners take the OPPOSITE
-     * handedness from U-primary corners. (Triple product "viewed from each
-     * sticker's own outside" would flip them; we don't want that.) */
-    bool want_swap = (trip < 0);
-    if (ord[0] / 8 == 1) want_swap = !want_swap; /* D primary: flip */
+    /* Kociemba's cornerFacelet defines secondary sticker order as: swap the
+     * two secondary slots when the scalar triple product of face normals is
+     * non-negative.  This holds for both U-primary and D-primary corners —
+     * U-primary have trip > 0 (need swap), D-primary have trip < 0 (no swap),
+     * and Kociemba's table agrees in both cases.  The previous formula
+     * (swap when trip<0 then flip for D-primary) only fixed D-primary and
+     * broke cross-layer corner cycles where the U→D handedness mismatch
+     * caused Kociemba to misidentify pieces (return -4, "Unsolvable cube!"). */
+    bool want_swap = (trip >= 0);
     if (want_swap) { int t = ord[1]; ord[1] = ord[2]; ord[2] = t; }
 
     for (int k = 0; k < 3; k++) PIECE_FACELETS[p][k] = (uint8_t)ord[k];
@@ -352,11 +355,18 @@ static void choose_for_cycle(EnumCtx *e, int reg, int cyc, int start, int filled
     }
 }
 
-int ccs_enumerate_assignments(const CCFArchitecture *arch, CCSAssignCB cb, void *ctx) {
+int ccs_enumerate_assignments(const CCFArchitecture *arch,
+                              CycleSet forbidden,
+                              CCSAssignCB cb, void *ctx) {
     EnumCtx e = {0};
     e.arch = arch;
     e.cb = cb;
     e.cb_ctx = ctx;
+    /* Pre-mark forbidden pieces so choose_for_cycle skips them naturally. */
+    for (int i = 0; i < CCF_CORNER_COUNT; i++)
+        if (forbidden & (CycleSet)(1u << (unsigned)CORNERS[i])) e.corner_used[i] = true;
+    for (int i = 0; i < CCF_EDGE_COUNT; i++)
+        if (forbidden & (CycleSet)(1u << (unsigned)EDGES[i])) e.edge_used[i] = true;
     choose_for_cycle(&e, 0, 0, 0, 0);
     return e.count;
 }
@@ -430,7 +440,7 @@ static bool solve_cb(CCSCycle cycles[CCF_MAX_REGISTERS][CCF_MAX_CYCLES_PER_REG],
 
 void ccs_solve(const CCFArchitecture *arch, CCSResult *out) {
     SolveCtx sctx = {arch, out, 0};
-    ccs_enumerate_assignments(arch, solve_cb, &sctx);
+    ccs_enumerate_assignments(arch, CYCLESET_EMPTY, solve_cb, &sctx);
 }
 
 // Stage 9 — Result management and public API

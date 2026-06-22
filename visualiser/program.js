@@ -35,7 +35,7 @@
 //   of a Fibonacci program whose accumulator register has limited order.)
 
 import { parseSequence } from './moves.js';
-import { createPieceState, applyMoveToPieces, isCycleSolved, isValidPieceLabel } from './pieces.js';
+import { createPieceState, applyMoveToPieces, isCycleSolved, isValidPieceLabel, isPieceHome } from './pieces.js';
 
 const MANIFEST_RE = /^;\s*reg\s+(\d+)\s+alg="([^"]*)"\s+order=(\d+)\s*$/;
 const NUMBERED_LINE_RE = /^(\d+)  (\S.*)$/;
@@ -353,4 +353,46 @@ function parseAndBuildTrace(text) {
   return { trace, log, errors: [], manifest };
 }
 
-export { createInterpreter, parseAndBuildTrace };
+// Returns the current value of a register given its algorithm (parsed moves),
+// its order, and the current piece state.  Works by applying alg^k to a fresh
+// solved cube for k = 0..order-1 and finding which k makes the pieces that the
+// algorithm moves match the current state.  Returns -1 if no k matches (should
+// not happen with a well-formed piece state).
+function computeRegisterValue(currentPieces, algMoves, order) {
+  // Determine which pieces this algorithm actually moves.
+  const probe = createPieceState();
+  for (const m of algMoves) applyMoveToPieces(probe, m);
+  const movedLabels = probe.filter(p => !isPieceHome(p)).map(p => p.label);
+
+  if (movedLabels.length === 0) return 0;
+
+  const candidate = createPieceState();
+  for (let k = 0; k < order; k++) {
+    const match = movedLabels.every(label => {
+      const ca = candidate.find(p => p.label === label);
+      const cu = currentPieces.find(p => p.label === label);
+      if (!ca || !cu) return false;
+      if (ca.x !== cu.x || ca.y !== cu.y || ca.z !== cu.z) return false;
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++)
+          if (ca.orientation[i][j] !== cu.orientation[i][j]) return false;
+      return true;
+    });
+    if (match) return k;
+    for (const m of algMoves) applyMoveToPieces(candidate, m);
+  }
+  return -1;
+}
+
+// Computes the current value of every register in `manifest` against the given
+// piece state.  Returns [{ index, order, value }]; value is null if the
+// algorithm string is invalid, -1 if no matching power was found.
+function computeAllRegisterValues(pieces, manifest) {
+  return manifest.map(entry => {
+    const { moves, errors } = parseSequence(entry.alg);
+    if (errors.length > 0) return { index: entry.index, order: entry.order, value: null };
+    return { index: entry.index, order: entry.order, value: computeRegisterValue(pieces, moves, entry.order) };
+  });
+}
+
+export { createInterpreter, parseAndBuildTrace, computeAllRegisterValues };

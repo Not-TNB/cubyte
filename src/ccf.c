@@ -559,23 +559,26 @@ static int cmp_tmpl_order_desc(const void *a, const void *b) {
     return (*(const RegTemplate *const *)b)->order - (*(const RegTemplate *const *)a)->order;
 }
 
-void ccf_run(CCFResult *out) {
-    out->archs = NULL; out->count = 0; out->cap = 0;
-
-    /* Candidate cycles: corners L=1..8, edges L=1..12; twist 0..period-1.
-     * Length-1 with zero twist is a no-op, so it is skipped. */
-    CandCycle cand[64];
-    int ncand = 0;
+static void build_cand_cycles(CandCycle *cand, int *ncand) {
+    *ncand = 0;
     for (int L = 1; L <= CCF_CORNER_COUNT; L++)
         for (int w = 0; w < CCF_CORNER_PERIOD; w++) {
             if (L == 1 && w == 0) continue;
-            cand[ncand++] = (CandCycle){0, (uint8_t)L, (int8_t)w};
+            cand[(*ncand)++] = (CandCycle){0, (uint8_t)L, (int8_t)w};
         }
     for (int L = 1; L <= CCF_EDGE_COUNT; L++)
         for (int w = 0; w < CCF_EDGE_PERIOD; w++) {
             if (L == 1 && w == 0) continue;
-            cand[ncand++] = (CandCycle){1, (uint8_t)L, (int8_t)w};
+            cand[(*ncand)++] = (CandCycle){1, (uint8_t)L, (int8_t)w};
         }
+}
+
+void ccf_run(CCFResult *out) {
+    out->archs = NULL; out->count = 0; out->cap = 0;
+
+    CandCycle cand[64];
+    int ncand = 0;
+    build_cand_cycles(cand, &ncand);
 
     RegTemplate *best = calloc(CCF_MAX_ORDER, sizeof *best);
     if (!best) return;
@@ -608,4 +611,47 @@ void ccf_run(CCFResult *out) {
                 i--;
                 break;
             }
+}
+
+static int cmp_tmpl_order_asc(const void *a, const void *b) {
+    return (*(const RegTemplate *const *)a)->order - (*(const RegTemplate *const *)b)->order;
+}
+
+int ccf_enumerate_templates(CCFTemplate *out, int cap) {
+    CandCycle cand[64];
+    int ncand = 0;
+    build_cand_cycles(cand, &ncand);
+
+    RegTemplate *best = calloc(CCF_MAX_ORDER, sizeof *best);
+    if (!best) return 0;
+
+    TmplCtx t = {0};
+    t.cand = cand; t.ncand = ncand; t.best = best;
+    tmpl_rec(&t, 0);
+
+    const RegTemplate **list = malloc(CCF_MAX_ORDER * sizeof *list);
+    int nlist = 0;
+    if (list) {
+        for (int o = 0; o < CCF_MAX_ORDER; o++)
+            if (best[o].present) list[nlist++] = &best[o];
+        qsort(list, nlist, sizeof *list, cmp_tmpl_order_asc);
+    }
+
+    int written = 0;
+    if (list) {
+        for (int i = 0; i < nlist && written < cap; i++) {
+            const RegTemplate *tm = list[i];
+            CCFTemplate *o = &out[written++];
+            o->order       = tm->order;
+            o->num_cycles  = tm->num_cycles;
+            o->corner_cost = tm->corner_cost;
+            o->edge_cost   = tm->edge_cost;
+            for (int c = 0; c < tm->num_cycles; c++)
+                o->cycles[c] = tm->cycles[c];
+        }
+        free(list);
+    }
+
+    free(best);
+    return written;
 }

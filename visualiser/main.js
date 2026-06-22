@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCube, disposeCube, applyMove } from './cube.js';
-import { parseAndBuildTrace, createInterpreter } from './program.js';
+import { parseAndBuildTrace, createInterpreter, computeAllRegisterValues } from './program.js';
+import { createPieceState, applyMoveToPieces } from './pieces.js';
 import { simplifyTrace } from './simplify.js';
 import { traceToFacelets, kociembaSimplify } from './kociemba.js';
 import { loadCuByteHighlighter } from './cubyte-highlight.js';
@@ -18,6 +19,7 @@ const cubyteInput = document.getElementById('cubyte-input');
 const cubyteHighlight = document.getElementById('cubyte-highlight');
 const modeSelect = document.getElementById('mode-select');
 const codeView = document.getElementById('code-view');
+const registerView = document.getElementById('register-view');
 const runBtn = document.getElementById('run-btn');
 const runSimplifiedBtn = document.getElementById('run-simplified-btn');
 const runLineBtn = document.getElementById('run-line-btn');
@@ -108,6 +110,13 @@ function abortAnimation() {
 // freshly-reset state.
 let generation = 0;
 
+// Register view state — manifest from the last program parsed, a piece state
+// tracking the trace-mode cube (null when not tracking), and the last known
+// good value per register (used as fallback when the state can't be decoded).
+let currentManifest = [];
+let tracePieces = null;
+let lastRegisterValues = new Map(); // register index -> last known value
+
 // Line-by-line emulator state. Mutually exclusive with the trace-based
 // playback above — starting one mode tears down the other (stopLineEmulator
 // / runProgram below). `lineInterpreter` is null whenever this mode isn't
@@ -122,13 +131,15 @@ function rebuildCube() {
 
 function renderMoveDisplay() {
   moveDisplay.innerHTML = '';
+  let activeSpan = null;
   parsedMoves.forEach((move, i) => {
     const span = document.createElement('span');
     span.textContent = move.raw;
     if (i < currentIndex) span.classList.add('done');
-    if (i === currentIndex) span.classList.add('active');
+    if (i === currentIndex) { span.classList.add('active'); activeSpan = span; }
     moveDisplay.appendChild(span);
   });
+  if (activeSpan) activeSpan.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function renderLog() {
@@ -136,6 +147,39 @@ function renderLog() {
     .filter((entry) => entry.afterTraceIndex <= currentIndex)
     .map((entry) => entry.text)
     .join('\n');
+}
+
+function renderRegisterView() {
+  if (currentManifest.length === 0) {
+    registerView.innerHTML = '';
+    return;
+  }
+
+  const pieces = lineInterpreter ? lineInterpreter.pieces : tracePieces;
+  const raw = pieces !== null
+    ? computeAllRegisterValues(pieces, currentManifest)
+    : currentManifest.map(e => ({ index: e.index, order: e.order, value: null }));
+
+  const values = raw.map(({ index, order, value }) => {
+    if (value !== null && value >= 0) {
+      lastRegisterValues.set(index, value);
+      return { index, order, display: String(value), pct: value / order * 100 };
+    }
+    const cached = lastRegisterValues.get(index);
+    if (cached !== undefined) {
+      return { index, order, display: String(cached), pct: cached / order * 100 };
+    }
+    return { index, order, display: value === null ? '—' : '?', pct: 0 };
+  });
+
+  registerView.innerHTML = '<div class="register-header">Registers</div>' +
+    values.map(({ index, order, display, pct }) =>
+      `<div class="register-row">
+        <span class="register-label">R${index}</span>
+        <span class="register-value">${display} / ${order}</span>
+        <div class="register-bar-container"><div class="register-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>`
+    ).join('');
 }
 
 function updateButtonStates() {
@@ -152,6 +196,11 @@ function updateButtonStates() {
   runBtn.disabled = busy;
   runSimplifiedBtn.disabled = busy;
   runLineBtn.disabled = busy || isAnimating || modeSelect.value === 'cubyte' || (lineInterpreter !== null && lineInterpreter.done);
+  if (lineInterpreter && !lineInterpreter.done) {
+    runLineBtn.textContent = 'Run Line ' + lineInterpreter.currentRow;
+  } else {
+    runLineBtn.textContent = 'Run Line';
+  }
 }
 
 function pausePlayback() {
@@ -286,6 +335,7 @@ function stopLineEmulator() {
   lineInterpreter = null;
   highlightRow(null);
   showTextarea();
+  renderRegisterView();
 }
 
 // First click: parses the program, shows the read-only highlighted view, and
@@ -323,9 +373,13 @@ async function runLine() {
     renderMoveDisplay();
     programLog.textContent = '';
 
+    currentManifest = init.manifest || [];
+    lastRegisterValues = new Map();
+    tracePieces = null;
     lineInterpreter = init.interpreter;
     showCodeView(assemblyText);
     highlightRow(lineInterpreter.currentRow);
+    renderRegisterView();
     updateButtonStates();
     return;
   }
@@ -350,6 +404,7 @@ async function runLine() {
   if (result.log) appendProgramLog(result.log);
   if (result.done) appendProgramLog('Program finished.');
   highlightRow(lineInterpreter.currentRow);
+  renderRegisterView();
 
   isAnimating = false;
   updateButtonStates();
@@ -407,9 +462,13 @@ async function runSimplifiedProgram() {
     { afterTraceIndex: 0, text: `${method}: ${originalCount} → ${simplifiedCount} moves` },
   ];
   currentIndex = 0;
+  currentManifest = result.manifest || [];
+  lastRegisterValues = new Map();
+  tracePieces = null; // simplified moves are synthetic — register values not tracked
   rebuildCube();
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 
   togglePlay();
@@ -440,9 +499,13 @@ async function runProgram() {
   parsedMoves = result.trace;
   log = result.log;
   currentIndex = 0;
+  currentManifest = result.manifest || [];
+  lastRegisterValues = new Map();
+  tracePieces = createPieceState();
   rebuildCube();
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 
   // "Run" steps through every move automatically; Pause/Next/Prev/Reset
@@ -464,11 +527,13 @@ async function stepNext() {
   // A Run/Reset click during the await already reset isAnimating/currentIndex
   // for the new program; don't stomp on that with this stale call's result.
   if (myGeneration !== generation) return;
+  if (tracePieces !== null) applyMoveToPieces(tracePieces, parsedMoves[currentIndex]);
   currentIndex++;
 
   isAnimating = false;
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 }
 
@@ -492,9 +557,15 @@ async function stepPrev() {
   }
   currentIndex = targetIndex;
 
+  if (tracePieces !== null) {
+    tracePieces = createPieceState();
+    for (let i = 0; i < currentIndex; i++) applyMoveToPieces(tracePieces, parsedMoves[i]);
+  }
+
   isAnimating = false;
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 }
 
@@ -506,6 +577,7 @@ async function skipToEnd() {
   updateButtonStates();
 
   while (currentIndex < parsedMoves.length) {
+    if (tracePieces !== null) applyMoveToPieces(tracePieces, parsedMoves[currentIndex]);
     const { promise, cancel } = applyMove(scene, cubies, parsedMoves[currentIndex], 0);
     cancelCurrentMove = cancel;
     await promise;
@@ -517,6 +589,7 @@ async function skipToEnd() {
   isAnimating = false;
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 }
 
@@ -527,9 +600,11 @@ function resetCube() {
   isAnimating = false;
   stopLineEmulator();
   currentIndex = 0;
+  tracePieces = parsedMoves.length > 0 ? createPieceState() : null;
   rebuildCube();
   renderMoveDisplay();
   renderLog();
+  renderRegisterView();
   updateButtonStates();
 }
 
