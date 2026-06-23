@@ -73,6 +73,7 @@ function resizeRenderer() {
 }
 
 window.addEventListener('resize', resizeRenderer);
+new ResizeObserver(resizeRenderer).observe(container);
 
 function renderLoop() {
   requestAnimationFrame(renderLoop);

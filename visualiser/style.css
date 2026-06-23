@@ -487,3 +487,73 @@ button:disabled {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 8px;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Mobile                                                                  */
+/* ---------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  html, body {
+    overflow: auto;
+  }
+
+  #app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* Scene: fixed 45vh tall, full width */
+  #scene-container {
+    flex: none;
+    width: 100%;
+    height: 45vh;
+  }
+
+  /* Hide the drag handle — useless on touch */
+  #sidebar-resizer {
+    display: none;
+  }
+
+  /* Sidebar: fills remaining space, scrolls internally */
+  #sidebar {
+    width: 100%;
+    height: auto;
+    min-height: 55vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-y: auto;
+  }
+
+  /* Playback overlay: stretch to container width instead of fixed 320px */
+  #playback-overlay {
+    width: calc(100% - 32px);
+  }
+
+  /* Shrink move display to save vertical space on the cube panel */
+  #move-display {
+    height: 48px;
+  }
+
+  /* Hide the move-display drag handle */
+  #move-display-resizer {
+    display: none;
+  }
+
+  /* Prevent iOS Safari from zooming on textarea focus */
+  #program-input,
+  #cubyte-input {
+    font-size: 16px;
+  }
+
+  /* Larger touch targets */
+  button {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  /* Let run buttons wrap if they're too wide */
+  #run-row {
+    flex-wrap: wrap;
+  }
+}
