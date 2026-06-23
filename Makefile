@@ -1,5 +1,5 @@
 CC     = cc
-CFLAGS = -std=c17 -Wall -Wextra -Werror -fsanitize=address,undefined -g
+CFLAGS = -std=c17 -Wall -Wextra -Werror -fsanitize=address,undefined -g -D_POSIX_C_SOURCE=200809L
 # -Iinclude exposes the public headers (program_ast.h, alg.h, piece.h, ...)
 IFLAGS = -Iinclude
 

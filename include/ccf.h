@@ -158,15 +158,6 @@ int ccf_order_specs(const CCFPrimePower *powers, int power_count,
                     CCFOrderSpec *out, int cap);
 
 /*
- * Step 3: given the order specs, fill *result with all non-redundant
- * multi-register architectures.  Architectures are generated in descending
- * register-order to avoid duplicates, and redundant ones are pruned during
- * search.  Allocates result->archs; caller must call ccf_free() when done.
- */
-void ccf_find_architectures(const CCFOrderSpec *orders, int order_count,
-                             CCFResult *result);
-
-/*
  * Print a human-readable summary of *result to fp.
  */
 void ccf_dump(const CCFResult *result, FILE *fp);

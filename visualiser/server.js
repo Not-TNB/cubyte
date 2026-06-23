@@ -10,7 +10,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const VISUALISER_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const KOCIEMBA_BIN = path.join(__dirname, '../third_party/ckociemba/bin/kociemba');
@@ -176,7 +176,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Cubyte visualiser: http://localhost:${PORT}`);
   console.log(`Kociemba binary:   ${KOCIEMBA_BIN}`);
   buildCubyte((err) => {

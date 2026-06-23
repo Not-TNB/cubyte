@@ -113,221 +113,6 @@ static CCFArchitecture *result_append(CCFResult *result,
  * Step 3: architecture search
  * -------------------------------------------------------------------------- */
 
-static int cmp_spec_desc(const void *a, const void *b) {
-    return ((const CCFOrderSpec *)b)->order - ((const CCFOrderSpec *)a)->order;
-}
-
-typedef struct {
-    const CCFOrderSpec  *specs;
-    int                  spec_count;
-    CCFResult           *result;
-    const CCFOrderSpec  *cur[CCF_MAX_REGISTERS];
-    int                  cur_count;
-    int                  cur_min_edges;
-    int                  cur_min_total; /* sum of min_pieces across all registers */
-} ArchCtx;
-
-
-/* Returns pieces needed to place pp in orbit (0=corners, 1=edges),
- * 0 for a pure-orientation placement, -1 if it cannot fit. */
-static int pp_cost(const CCFPrimePower *pp, int orbit) {
-    int size   = (orbit == 0) ? CCF_CORNER_COUNT  : CCF_EDGE_COUNT;
-    int period = (orbit == 0) ? CCF_CORNER_PERIOD : CCF_EDGE_PERIOD;
-    int pm = 1;
-    for (int m = 0; m <= pp->k; m++, pm *= pp->p) {
-        if (pm > size) break;
-        if (period % (pp->value / pm) == 0)
-            return (pm == 1) ? 0 : pm;
-    }
-    return -1;
-}
-
-#define MAX_TOTAL_FACTORS (CCF_MAX_REGISTERS * CCF_MAX_PRIME_FACTORS)
-
-typedef struct {
-    CCFPrimePower pp;
-    int           reg_idx; /* which register this factor belongs to */
-    int           orbit;   /* 0=corners, 1=edges — set during recursion */
-    int           cost;    /* pieces consumed in that orbit */
-} PlacedFactor;
-
-typedef struct {
-    ArchCtx      *arch;
-    PlacedFactor  factors[MAX_TOTAL_FACTORS];
-    int           num_factors;
-} PlaceCtx;
-
-static void place_rec(PlaceCtx *ctx, int fi,
-                      int used_corners, int used_edges) {
-    if (fi == ctx->num_factors) {
-        int free_corners = CCF_CORNER_COUNT - used_corners;
-        int free_edges   = CCF_EDGE_COUNT   - used_edges;
-
-        /* orientation check: if an orbit has no free pieces, cycle net
-         * orientations in that orbit must already sum to 0 mod period */
-        int corner_ori = 0, edge_ori = 0;
-        for (int i = 0; i < ctx->num_factors; i++) {
-            const PlacedFactor *f = &ctx->factors[i];
-            int length = (f->cost == 0) ? 1 : f->cost;
-            int period = (f->orbit == 0) ? CCF_CORNER_PERIOD : CCF_EDGE_PERIOD;
-            int net_ori = ((length * period) / f->pp.value == period) ? 0 : 1;
-            if (f->orbit == 0) corner_ori += net_ori;
-            else               edge_ori   += net_ori;
-        }
-        if (free_corners == 0 && corner_ori % CCF_CORNER_PERIOD != 0) return;
-        if (free_edges   == 0 && edge_ori   % CCF_EDGE_PERIOD   != 0) return;
-
-        /* parity check: if there are no free pieces available for a
-         * compensating 2-swap, the combined cycle parity must be even */
-        int parity = 0;
-        for (int i = 0; i < ctx->num_factors; i++)
-            parity ^= (ctx->factors[i].cost == 0)
-                      ? 0 : (ctx->factors[i].cost - 1) & 1;
-        if (parity && free_corners < 2 && free_edges < 2) return;
-
-        /* build and record the architecture */
-        CCFArchitecture arch = {0};
-        arch.num_registers = ctx->arch->cur_count;
-        arch.free_corners  = free_corners;
-        arch.free_edges    = free_edges;
-        for (int r = 0; r < ctx->arch->cur_count; r++) {
-            CCFRegister *reg = &arch.registers[r];
-            reg->order = ctx->arch->cur[r]->order;
-            for (int i = 0; i < ctx->num_factors; i++) {
-                const PlacedFactor *f = &ctx->factors[i];
-                if (f->reg_idx != r) continue;
-                CCFCycle *cy   = &reg->cycles[reg->num_cycles++];
-                cy->orbit      = (uint8_t)f->orbit;
-                cy->length     = (uint8_t)((f->cost == 0) ? 1 : f->cost);
-                cy->order      = f->pp.value;
-                int period     = (f->orbit == 0) ? CCF_CORNER_PERIOD
-                                                 : CCF_EDGE_PERIOD;
-                cy->net_orientation = (int8_t)(
-                    (cy->length * period / cy->order == period) ? 0 : 1);
-            }
-        }
-        result_append(ctx->arch->result, &arch);
-        return;
-    }
-
-    for (int orbit = 0; orbit <= 1; orbit++) {
-        if (orbit == 0 && !ctx->factors[fi].pp.fits_corners) continue;
-        int c = pp_cost(&ctx->factors[fi].pp, orbit);
-        if (c < 0) continue;
-        int new_corners = used_corners + (orbit == 0 ? c : 0);
-        int new_edges   = used_edges   + (orbit == 1 ? c : 0);
-        if (new_corners > CCF_CORNER_COUNT) continue;
-        if (new_edges   > CCF_EDGE_COUNT)   continue;
-        ctx->factors[fi].orbit = orbit;
-        ctx->factors[fi].cost  = c;
-        place_rec(ctx, fi + 1, new_corners, new_edges);
-    }
-}
-
-static void try_place(ArchCtx *ctx) {
-    PlaceCtx pctx = {0};
-    pctx.arch = ctx;
-    for (int r = 0; r < ctx->cur_count; r++) {
-        const CCFOrderSpec *spec = ctx->cur[r];
-        for (int i = 0; i < spec->num_factors; i++) {
-            PlacedFactor *pf = &pctx.factors[pctx.num_factors++];
-            pf->pp      = spec->factors[i];
-            pf->reg_idx = r;
-        }
-    }
-    place_rec(&pctx, 0, 0, 0);
-}
-
-/* Returns 1 if b dominates a: same register count, every b order >= a order,
- * at least one strictly greater. */
-static int dominates(const CCFArchitecture *b, const CCFArchitecture *a) {
-    if (b->num_registers != a->num_registers) return 0;
-    int strict = 0;
-    for (int i = 0; i < a->num_registers; i++) {
-        if (b->registers[i].order < a->registers[i].order) return 0;
-        if (b->registers[i].order > a->registers[i].order) strict = 1;
-    }
-    return strict;
-}
-
-/* Returns 1 if any found architecture dominates every (cur_count+1)-register
- * candidate reachable from this branch — i.e. an architecture B exists with
- * the same register count whose first cur_count orders are all >= the current
- * partial's orders and whose last order is >= next_order (the best remaining
- * choice). Since specs are sorted descending, all later choices are <= next_order,
- * so the same B dominates them too; the caller can break out of the for loop. */
-static int branch_dominated(const CCFResult *result,
-                             const CCFOrderSpec * const *cur, int cur_count,
-                             int next_order) {
-    int target = cur_count + 1;
-    for (int i = 0; i < result->count; i++) {
-        const CCFArchitecture *b = &result->archs[i];
-        if (b->num_registers != target) continue;
-        int ok = 1;
-        for (int j = 0; j < cur_count; j++)
-            if (b->registers[j].order < cur[j]->order) { ok = 0; break; }
-        if (ok && b->registers[cur_count].order >= next_order) return 1;
-    }
-    return 0;
-}
-
-static void arch_rec(ArchCtx *ctx, int from) {
-    if (ctx->cur_count > 0)
-        try_place(ctx);
-
-    if (ctx->cur_count == CCF_MAX_REGISTERS)
-        return;
-
-    for (int i = from; i < ctx->spec_count; i++) {
-        int new_min_edges = ctx->cur_min_edges + ctx->specs[i].min_edges;
-        if (new_min_edges > CCF_EDGE_COUNT) continue;
-        int new_min_total = ctx->cur_min_total + ctx->specs[i].min_corners;
-        if (new_min_total > CCF_PIECE_COUNT) continue;
-        ctx->cur[ctx->cur_count++] = &ctx->specs[i];
-        ctx->cur_min_edges         = new_min_edges;
-        ctx->cur_min_total         = new_min_total;
-        arch_rec(ctx, i);
-        ctx->cur_count--;
-        ctx->cur_min_edges -= ctx->specs[i].min_edges;
-        ctx->cur_min_total -= ctx->specs[i].min_corners;
-        /* Break after recursion: if the (cur_count+1)-register arch we just
-         * explored is dominated, all later specs (with smaller orders) would
-         * also produce dominated (cur_count+1)-register archs. Only valid at
-         * cur_count > 0; at the top level it would cut multi-register branches
-         * that start with a small first register (e.g. [90,90]). */
-        if (ctx->cur_count > 0 &&
-            branch_dominated(ctx->result, ctx->cur, ctx->cur_count,
-                             ctx->specs[i].order)) break;
-    }
-}
-
-void ccf_find_architectures(const CCFOrderSpec *orders, const int order_count, CCFResult *result) {
-    CCFOrderSpec *specs = malloc(order_count * sizeof *specs);
-    if (!specs) return;
-    memcpy(specs, orders, order_count * sizeof *specs);
-    qsort(specs, order_count, sizeof *specs, cmp_spec_desc);
-
-    ArchCtx ctx = {0};
-    ctx.specs      = specs;
-    ctx.spec_count = order_count;
-    ctx.result     = result;
-    arch_rec(&ctx, 0);
-    free(specs);
-
-    /* Final sweep: remove any architectures still dominated by another.
-     * Swap-with-last to avoid shifting; re-examine index i after removal. */
-    for (int i = 0; i < result->count; i++) {
-        for (int j = 0; j < result->count; j++) {
-            if (j == i) continue;
-            if (dominates(&result->archs[j], &result->archs[i])) {
-                result->archs[i] = result->archs[--result->count];
-                i--;
-                break;
-            }
-        }
-    }
-}
-
 /* --------------------------------------------------------------------------
  * CCF functions
  * -------------------------------------------------------------------------- */
@@ -423,6 +208,16 @@ void ccf_dump(const CCFResult *result, FILE *fp) {
  * ========================================================================== */
 
 static int igcd(int a, int b) { while (b) { int t = a % b; a = b; b = t; } return a; }
+
+static int dominates(const CCFArchitecture *b, const CCFArchitecture *a) {
+    if (b->num_registers != a->num_registers) return 0;
+    int strict = 0;
+    for (int i = 0; i < a->num_registers; i++) {
+        if (b->registers[i].order < a->registers[i].order) return 0;
+        if (b->registers[i].order > a->registers[i].order) strict = 1;
+    }
+    return strict;
+}
 
 /* Order contributed by one cycle: length * period / gcd(twist, period). */
 static int cycle_order(int orbit, int length, int twist) {

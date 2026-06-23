@@ -46,7 +46,7 @@ extern InterferenceGraph *ig_build(TypeEnv *env, const IGLivenessNode *nodes,
                                    int node_count) WEAK_STAGE;
 extern void ig_free(InterferenceGraph *ig) WEAK_STAGE;
 extern void ig_dump(InterferenceGraph *ig, FILE *out) WEAK_STAGE;
-extern void regalloc_init(RegTable *table, int temp_required_order) WEAK_STAGE;
+extern void regalloc_init(RegTable *table) WEAK_STAGE;
 extern void regalloc_free(RegTable *table) WEAK_STAGE;
 extern int *regalloc_run(RegTable *table, const InterferenceGraph *ig) WEAK_STAGE;
 extern void regalloc_dump(const RegTable *table, const InterferenceGraph *ig,
@@ -406,17 +406,7 @@ int main(int argc, char **argv) {
      */
     require_stage((const void *)regalloc_init, "regalloc");
     require_stage((const void *)regalloc_run, "regalloc");
-    /* The scratch register R1 backs every variable add/sub and must be at least
-     * as wide as the widest int variable, so reserve it against the largest
-     * declared register order. */
-    int temp_required_order = 0;
-    for (int i = 0; i < type_env.count; i++) {
-        if (type_env.entries[i].type == TYPE_INT &&
-            type_env.entries[i].required_order > temp_required_order) {
-            temp_required_order = type_env.entries[i].required_order;
-        }
-    }
-    regalloc_init(&regs, temp_required_order);
+    regalloc_init(&regs);
     regs.r0_reserved = program_uses_io_register(desugared_program);
     regs_initialised = true;
     colouring = regalloc_run(&regs, ig);

@@ -4,8 +4,8 @@
 /*
  * Cycle Combination Solver (CCS)
  *
- * Given a CCFArchitecture (abstract register specifications), finds the
- * shortest concrete Rubik's-cube algorithm implementing each register's
+ * Given a CCFArchitecture (abstract register specifications), finds a
+ * near-optimal concrete Rubik's-cube algorithm implementing each register's
  * "add 1" operation.  All other powers are derived externally by repetition.
  *
  * Pipeline for each piece assignment:
@@ -20,10 +20,9 @@
  *     carrying identity → T implements the desired cycle structure.
  *     Currently only net_orientation = 0 is supported (all ori_deltas = 0).
  *
- *   Step 3 — Algorithm search  (ccs_find_alg → IDA*)
- *     Iteratively-deepening DFS from identity toward T, pruned by:
- *       • an admissible lower-bound from a BFS pruning table built from T
- *       • a canonical-sequence filter (3 rules, branching factor ~13.35)
+ *   Step 3 — Algorithm search  (ccs_find_alg → kociemba_solve_state)
+ *     Delegates to Kociemba's two-phase solver, which finds a near-optimal
+ *     solution (≤20 HTM) in milliseconds using pre-built pruning tables.
  *
  *   Step 4 — Collect results
  *     Successful architectures (all registers solved) are appended to the

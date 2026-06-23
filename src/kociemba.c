@@ -17,9 +17,6 @@
  * must be overridden at compile time with absolute paths.
  */
 
-/* popen/pclose are POSIX, not ISO C; request them under -std=c17. */
-#define _POSIX_C_SOURCE 200809L
-
 #include "../include/kociemba.h"
 #include "../include/cube.h"
 #include "../include/alg.h"

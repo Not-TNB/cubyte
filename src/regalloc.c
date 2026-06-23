@@ -325,14 +325,13 @@ static void regtable_push(RegTable *t, const RegEntry entry) {
 static int find_and_add_impl(RegTable *table, const CycleSet forbidden,
                              const int required_order, bool prefer_corners);
 
-/* Initialise the table and pre-populate R0 plus reserved temp R1.
+/* Initialise the table with R0 and an empty R1 placeholder.
  *
- * temp_required_order is the largest register order any int variable in the
- * program demands. The scratch register R1 backs every variable add/sub, and
- * codegen requires temp order >= source order, so the temp must be at least as
- * large as the widest variable or those operations are rejected. Passing 0
- * keeps the historical order-3 scratch register. */
-void regalloc_init(RegTable *table, int temp_required_order) {
+ * R1 is realized after variable coloring in regalloc_run, once the actual
+ * free piece pool and maximum variable order are known. Pre-allocating R1
+ * here would block variables from using pieces that R1 claims, potentially
+ * forcing variables to escalate to higher orders than declared. */
+void regalloc_init(RegTable *table) {
     *table = (RegTable){0};
 
     Alg r0 = {0};
@@ -353,11 +352,15 @@ void regalloc_init(RegTable *table, int temp_required_order) {
     });
     table->r0_reserved = true;
 
-    /* R1 is reserved for codegen's destructive copy/compare helpers. It must be
-     * wide enough to hold any variable that takes part in an add/sub, and we bias
-     * it toward a dense corner register so the 12 edges stay free for ordinary
-     * variables (see candidate_is_corner_only). */
-    find_and_add_impl(table, table->regs[0].cycles, temp_required_order, true);
+    /* R1 placeholder: empty cycles so build_forbidden ignores it during
+     * variable coloring. Realized by regalloc_run after all variables
+     * are assigned. */
+    regtable_push(table, (RegEntry){
+        .algorithm = strdup(""),
+        .order     = 0,
+        .cycles    = CYCLESET_EMPTY,
+        .index     = 1,
+    });
 }
 
 /* Free all owned algorithm strings and the entry array. */
@@ -748,6 +751,47 @@ static void check_invariants(const RegTable *table, const InterferenceGraph *ig,
     }
 }
 
+/* Realize the R1 scratch register from the pieces that remain after R0 and
+ * all variables are accounted for. Called after variable coloring so that R1
+ * never competes with variables for pieces. */
+static void realize_temp(RegTable *table, const InterferenceGraph *ig,
+                         const int *coloring) {
+    int max_var_order = 0;
+    CycleSet all_var_cycles = CYCLESET_EMPTY;
+    for (int i = 0; i < ig->count; i++) {
+        int ri = coloring[ig->nodes[i].var_index];
+        if (table->regs[ri].order > max_var_order)
+            max_var_order = table->regs[ri].order;
+        all_var_cycles |= table->regs[ri].cycles;
+    }
+    /* R0 is pre-assigned outside the IG but can appear as an operand in
+     * add/sub/compare, all of which route through the temp. */
+    if (table->r0_reserved && table->regs[0].order > max_var_order)
+        max_var_order = table->regs[0].order;
+
+    CycleSet forbidden = all_var_cycles;
+    if (table->r0_reserved) forbidden |= table->regs[0].cycles;
+
+    Alg temp = {0};
+    if (max_var_order == 0) {
+        if (!ccs_find_small_register(forbidden, 3, false, &temp))
+            idas_find(forbidden, 3, &temp);
+    } else {
+        if (!ccs_find_small_register(forbidden, max_var_order, true, &temp) &&
+            !ccs_find_small_register(forbidden, max_var_order, false, &temp)) {
+            die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, -1,
+                "no register with order >= %d available for the scratch slot; "
+                "program uses too many cube pieces", max_var_order);
+        }
+    }
+
+    free(table->regs[1].algorithm);
+    table->regs[1].algorithm = alg_to_string(&temp);
+    table->regs[1].order     = compute_order(&temp);
+    table->regs[1].cycles    = cycleset_from_alg(&temp);
+    alg_free(&temp);
+}
+
 /* Colour every IG node with a disjoint register; return colouring[var_index] = RegTable index. */
 int *regalloc_run(RegTable *table, const InterferenceGraph *ig) {
     const int env_count = ig->env->count;
@@ -773,6 +817,7 @@ int *regalloc_run(RegTable *table, const InterferenceGraph *ig) {
     }
 
     free(sorted);
+    realize_temp(table, ig, coloring);
     check_invariants(table, ig, coloring);
     return coloring;
 }

@@ -24,12 +24,10 @@ typedef struct {
     bool      r0_reserved;
 } RegTable;
 
-/* Initialise table and pre-populate R0 plus the reserved scratch register R1.
- * cube_init() must be called before this. temp_required_order is the largest
- * order any int variable in the program needs; the scratch register must be at
- * least that wide because every variable add/sub routes through it and codegen
- * requires temp order >= source order. Pass 0 for the legacy order-3 scratch. */
-void regalloc_init(RegTable *table, int temp_required_order);
+/* Initialise the table with R0 and an empty R1 placeholder.
+ * R1 is realized after variable coloring in regalloc_run.
+ * cube_init() must be called before this. */
+void regalloc_init(RegTable *table);
 void regalloc_free(RegTable *table);
 
 /* Find an algorithm whose cycle set is disjoint from `forbidden`, append it to
