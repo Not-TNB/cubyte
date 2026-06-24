@@ -1,0 +1,23 @@
+# Gradle build output.
+build/
+.gradle/
+out/
+
+# IntelliJ IDE metadata (.iml, .iws, .ipr are not source).
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS / editor scratch files.
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# The local Gradle wrapper distribution — generated on first build.
+gradle/wrapper/gradle-wrapper.jar
+gradle/wrapper/gradle-wrapper.properties
+
+# Plugin artifacts (built by `./gradlew buildPlugin`).
+*.zip

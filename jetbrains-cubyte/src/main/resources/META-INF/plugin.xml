@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  plugin.xml — manifest for the Cubyte JetBrains plugin.
+
+  Extension points registered below:
+    1. <lang.fileType>                — associates .cbyte files with the
+                                       Cubyte language and our icon.
+    2. <lang.parserDefinition>        — stub PSI parser. The IntelliJ
+                                       Platform requires one to even
+                                       recognize a custom language; the
+                                       actual highlighting is done by the
+                                       TextMate bundle (4), so the parser
+                                       returns a single empty node.
+    3. <lang.syntaxHighlighterFactory> — required by the platform to
+                                       attach a highlighter; the
+                                       TextMate bundle overrides it
+                                       once loaded, so this returns a
+                                       no-op implementation.
+    4. <platform.textMate>           — loads the TextMate grammar JSON
+                                       and uses it as the real syntax
+                                       highlighter for .cbyte files.
+
+  TODO (future work): add a <platform.lsp.server> entry that spawns
+  `cubyte-lsp` (installed from PyPI) over stdio for diagnostics,
+  completion, etc.
+-->
+<idea-plugin package="com.cubyte">
+
+    <id>com.cubyte</id>
+    <name>Cubyte</name>
+    <version>0.0.1</version>
+    <vendor email="noreply@example.com" url="https://github.com/Not-TNB/cubyte">Cubyte</vendor>
+
+    <description><![CDATA[
+        JetBrains IDE support for the Cubyte programming language.
+
+        Provides:
+        - Syntax highlighting for .cbyte files (via the TextMate grammar
+          from the Cubyte visualizer).
+        - File type recognition for the .cbyte extension.
+
+        Requires the `cubyte-lsp` Python package for full language
+        server features (diagnostics, completion, go-to-definition).
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <ul>
+            <li>0.0.1 — Initial skeleton: file type registration, TextMate
+                syntax highlighting from cubyte.tmLanguage.json.</li>
+        </ul>
+    ]]></change-notes>
+
+    <!--
+      IntelliJ Platform compatibility. "since-build" / "until-build" pin
+      the range of IDE versions this plugin will load in. 2024.2+ is
+      required for the modern TextMate bundle provider API used below.
+    -->
+    <idea-version since-build="242" until-build="242.*"/>
+
+    <!--
+      The Cubyte language server (cubyte-lsp) is launched as an
+      external process. The plugin does not depend on its Java classes,
+      so no IntelliJ plugin dependencies are declared here.
+
+      TODO: add <depends>com.intellij.modules.lsp</depends> when the
+      LSP server descriptor is implemented.
+    -->
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 1. File type: .cbyte files belong to the "Cubyte" language. -->
+        <lang.fileType
+            name="Cubyte"
+            implementationClass="com.cubyte.lang.CubyteFileType"
+            fieldName="INSTANCE"
+            extensions="cbyte"
+            icon="com.cubyte.lang.CubyteIcons.FILE"/>
+
+        <!-- 2. Trivial parser definition. Required by the platform to
+             create a language; the real tokenization is done by the
+             TextMate bundle registered further down. -->
+        <lang.parserDefinition
+            language="Cubyte"
+            implementationClass="com.cubyte.lang.CubyteParserDefinition"/>
+
+        <!-- 3. Stub highlighter factory. Returned highlighter is unused
+             once the TextMate bundle is active, but the extension
+             itself is required. -->
+        <lang.syntaxHighlighterFactory
+            language="Cubyte"
+            implementationClass="com.cubyte.lang.CubyteSyntaxHighlighterFactory"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij.platform.textMate">
+        <!-- 4. The actual syntax highlighter. The TextMate bundle
+             parses cubyte.tmLanguage.json and applies it to .cbyte
+             files, overriding the stub highlighter from extension #3. -->
+        <bundle
+            path="/textMate/cubyte.tmLanguage.json"
+            name="CuByte"/>
+    </extensions>
+
+</idea-plugin>

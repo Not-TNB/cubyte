@@ -1,0 +1,152 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CuByte",
+  "scopeName": "source.cbyte",
+  "fileTypes": ["cbyte"],
+  "firstLineMatch": "",
+  "patterns": [
+    { "include": "#preprocessor" },
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#piece-labels" },
+    { "include": "#constants" },
+    { "include": "#keywords" },
+    { "include": "#storage-types" },
+    { "include": "#storage-modifiers" },
+    { "include": "#operators" },
+    { "include": "#identifiers" },
+    { "include": "#numbers" },
+    { "include": "#braces" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.cbyte",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.cbyte",
+          "begin": "^\\s*#\\s*define\\b",
+          "end": "$",
+          "beginCaptures": {
+            "0": { "name": "keyword.control.directive.define.cbyte" }
+          },
+          "patterns": [
+            {
+              "name": "entity.name.function.preprocessor.cbyte",
+              "match": "(?<=\\bdefine\\s)[A-Za-z_][A-Za-z_0-9]*"
+            },
+            {
+              "name": "variable.parameter.preprocessor.cbyte",
+              "match": "\\b[A-Za-z_][A-Za-z_0-9]*(?=\\s*[,)])"
+            },
+            {
+              "include": "#comments"
+            }
+          ]
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.cbyte",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.cbyte",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "piece-labels": {
+      "name": "constant.language.piece-label.cbyte",
+      "match": "\\b(?:UFL|UF|UFR|UL|UR|UBL|UB|UBR|DFL|DF|DFR|DL|DR|DBL|DB|DBR|FL|FR|BL|BR)\\b"
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.cbyte",
+          "match": "\\b_io\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.cbyte",
+          "match": "\\b(?:if|else|while|goto|solved|not)\\b"
+        },
+        {
+          "name": "keyword.other.cbyte",
+          "match": "\\b(?:input|output|apply|ord)\\b"
+        }
+      ]
+    },
+    "storage-types": {
+      "name": "storage.type.cbyte",
+      "match": "\\b(?:int|alg)\\b"
+    },
+    "storage-modifiers": {
+      "name": "storage.modifier.cbyte",
+      "match": "\\blet\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.cbyte",
+          "match": ":="
+        },
+        {
+          "name": "keyword.operator.logical.cbyte",
+          "match": "\\+\\+"
+        },
+        {
+          "name": "keyword.operator.comparison.cbyte",
+          "match": "=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.cbyte",
+          "match": "\\+|-"
+        },
+        {
+          "name": "keyword.operator.colon.cbyte",
+          "match": ":"
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable.other.cbyte",
+      "match": "\\b[A-Za-z_][A-Za-z_0-9]*\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.cbyte",
+      "match": "\\b[0-9]+\\b"
+    },
+    "braces": {
+      "patterns": [
+        { "name": "punctuation.definition.block.begin.cbyte", "match": "\\{" },
+        { "name": "punctuation.definition.block.end.cbyte",   "match": "\\}" }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.separator.comma.cbyte", "match": "," },
+        { "name": "punctuation.terminator.statement.cbyte", "match": ";" },
+        { "name": "punctuation.section.brackets.begin.cbyte", "match": "\\[" },
+        { "name": "punctuation.section.brackets.end.cbyte",   "match": "\\]" },
+        { "name": "punctuation.section.parens.begin.cbyte", "match": "\\(" },
+        { "name": "punctuation.section.parens.end.cbyte",   "match": "\\)" }
+      ]
+    }
+  }
+}
