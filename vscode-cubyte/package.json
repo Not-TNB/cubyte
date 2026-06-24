@@ -1,0 +1,22 @@
+{
+  "name": "vscode-cubyte",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.82.0" },
+  "activationEvents": ["onLanguage:cubyte"],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "cubyte",
+      "extensions": [".cbyte"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "cubyte",
+      "scopeName": "source.cbyte",
+      "path": "./syntaxes/cubyte.tmLanguage.json"
+    }]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
