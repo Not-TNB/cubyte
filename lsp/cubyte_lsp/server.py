@@ -45,7 +45,7 @@ from .utils import uri_to_path
 log = logging.getLogger("cubyte_lsp.server")
 
 SERVER_NAME = "cubyte-lsp"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.3.0"
 
 
 def _log_to_stderr(level: int = logging.INFO) -> None:
