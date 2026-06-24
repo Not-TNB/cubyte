@@ -44,6 +44,8 @@ void init_lexer(Lexer *lexer, FILE *input) {
     lexer->input = input;
     lexer->current_column = 1;
     lexer->current_line = 1;
+    lexer->source_map = NULL;
+    lexer->source_filename = NULL;
 }
 
 // Checks if a character is a lone token (i.e. cannot continue a previous token)
