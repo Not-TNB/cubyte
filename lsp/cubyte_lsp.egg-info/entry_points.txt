@@ -1,0 +1,2 @@
+[console_scripts]
+cubyte-lsp = cubyte_lsp.server:main
