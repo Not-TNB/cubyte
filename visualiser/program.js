@@ -46,6 +46,7 @@ const INPUT_RE = /^input "([^"\n]*)"$/;
 const OUTPUT_RE = /^output \(([^()]*)\) \(([^()]*)\)$/;
 const MAX_STEPS = 200000;
 const MAX_OUTPUT_ITERATIONS = 10000;
+const MAX_INPUT_VALUE = 1259;
 
 // `row` is the 1-indexed line within the raw program text (used to highlight
 // the right line in the UI); `line` is the assembly line-number embedded in
@@ -250,6 +251,9 @@ class Interpreter {
       } else if (!Number.isInteger(value) || value < 0) {
         value = 0;
         note = ` (invalid value "${entered}", defaulted to 0)`;
+      } else if (value > MAX_INPUT_VALUE) {
+        note = ` (clamped from ${value} to ${MAX_INPUT_VALUE})`;
+        value = MAX_INPUT_VALUE;
       }
 
       for (let i = 0; i < value; i++) {

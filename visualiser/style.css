@@ -540,10 +540,21 @@ button:disabled {
     display: none;
   }
 
-  /* Prevent iOS Safari from zooming on textarea focus */
+  /* Prevent iOS Safari from zooming on textarea focus. The highlight
+     overlay must keep the same size and line-height — otherwise its font
+     metrics diverge from the textarea's, the caret drifts away from the
+     typed character, and the caret (rendered at line-box height) grows
+     much taller than the text. The line numbers must match the same
+     metrics so each digit lines up with its row in the textarea. */
   #program-input,
-  #cubyte-input {
+  #cubyte-input,
+  #cubyte-highlight {
     font-size: 16px;
+    line-height: 1.2;
+  }
+  #cubyte-line-numbers {
+    font-size: 16px;
+    line-height: 1.2;
   }
 
   /* Larger touch targets */
