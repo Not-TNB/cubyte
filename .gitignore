@@ -29,6 +29,13 @@ third_party/ckociemba/bin/kociemba
 #ignore junk files from compiling Java code
 *.class
 
+#node modules
+/vscode-cubyte/node_modules
+
+#python package for lsp
+/lsp/dist
+
+
 #ignore other junk files
 *.backup
 *.kate-swp
