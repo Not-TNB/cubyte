@@ -91,7 +91,7 @@ static void intlist_push(IntList *list, int value) {
         int new_capacity = next_cap(list->capacity);
         int *new_items = realloc(list->items, sizeof(int) * (size_t)new_capacity);
         if (new_items == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         list->items = new_items;
@@ -125,7 +125,7 @@ static void intlist_free(IntList *list) {
  */
 static LiveSet live_bit(int index) {
     if (index < 0 || index >= LIVESET_BITS) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "variable index %d does not fit in liveness bitset", index);
     }
 
@@ -136,7 +136,7 @@ static LiveSet live_bit(int index) {
 static CFG *cfg_new(void) {
     CFG *cfg = malloc(sizeof(CFG));
     if (cfg == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     cfg->nodes = NULL;
@@ -160,7 +160,7 @@ static int cfg_add_node(CFG *cfg, CFGNodeKind kind, Statement *stmt) {
         CFGNode *new_nodes =
             realloc(cfg->nodes, sizeof(CFGNode) * (size_t)new_capacity);
         if (new_nodes == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         cfg->nodes = new_nodes;
@@ -190,7 +190,7 @@ static int cfg_add_node(CFG *cfg, CFGNodeKind kind, Statement *stmt) {
  */
 static void cfg_add_edge(CFG *cfg, int from, int to) {
     if (from < 0 || to < 0 || from >= cfg->count || to >= cfg->count) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "bad cfg edge %d -> %d", from, to);
     }
 
@@ -202,7 +202,7 @@ static void cfg_add_edge(CFG *cfg, int from, int to) {
     }
 
     if (node->succ_count == 2) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "cfg node %d has too many successors", from);
     }
 
@@ -226,7 +226,7 @@ static void labels_push(CFGBuilder *builder, char *name, int node) {
     for (int i = 0; i < builder->label_count; i++) {
         if (builder->labels[i].name != NULL && name != NULL &&
             strcmp(builder->labels[i].name, name) == 0) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "duplicate label node '%s'", name);
         }
     }
@@ -236,7 +236,7 @@ static void labels_push(CFGBuilder *builder, char *name, int node) {
         LabelTarget *new_labels =
             realloc(builder->labels, sizeof(LabelTarget) * (size_t)new_capacity);
         if (new_labels == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         builder->labels = new_labels;
@@ -255,7 +255,7 @@ static void gotos_push(CFGBuilder *builder, int node, char *target) {
         PendingGoto *new_gotos =
             realloc(builder->gotos, sizeof(PendingGoto) * (size_t)new_capacity);
         if (new_gotos == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         builder->gotos = new_gotos;
@@ -308,7 +308,7 @@ static BuildResult no_exit(int node) {
  */
 static BuildResult build_statement(CFGBuilder *builder, Statement *stmt) {
     if (stmt == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null statement in cfg");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null statement in cfg");
     }
 
     switch (stmt->kind) {
@@ -398,7 +398,7 @@ static BuildResult build_statement(CFGBuilder *builder, Statement *stmt) {
                                 stmt->block.block_count);
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
         "unknown statement kind in cfg");
 }
 
@@ -437,7 +437,7 @@ static void resolve_gotos(CFGBuilder *builder) {
     for (int i = 0; i < builder->goto_count; i++) {
         int target = label_lookup(builder, builder->gotos[i].target);
         if (target < 0) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "goto target '%s' missing from cfg label map",
                 builder->gotos[i].target);
         }
@@ -454,7 +454,7 @@ static void resolve_gotos(CFGBuilder *builder) {
  */
 CFG *cfg_build(ProgramAST *program) {
     if (program == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null program in cfg_build");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null program in cfg_build");
     }
 
     CFGBuilder builder = {0};
@@ -564,7 +564,7 @@ static void dump_node_summary(const CFGNode *node, FILE *out) {
 /* Human-readable graph dump used by --dump-cfg and small unit tests. */
 void cfg_dump(const CFG *cfg, FILE *out) {
     if (cfg == NULL || out == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null cfg dump");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null cfg dump");
     }
 
     for (int i = 0; i < cfg->count; i++) {
@@ -588,7 +588,7 @@ static void check_liveness_indices(TypeEnv *env) {
     for (int i = 0; i < env->count; i++) {
         if (env->entries[i].type == TYPE_INT &&
             env->entries[i].index >= LIVESET_BITS) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "int variable '%s' has index %d outside liveness bitset",
                 env->entries[i].name, env->entries[i].index);
         }
@@ -752,7 +752,7 @@ static void warn_live_at_entry(TypeEnv *env, LiveSet live_in) {
  */
 LivenessResult *liveness_analyze(CFG *cfg, TypeEnv *env) {
     if (cfg == NULL || env == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null liveness input");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null liveness input");
     }
 
     check_liveness_indices(env);
@@ -788,7 +788,7 @@ LivenessResult *liveness_analyze(CFG *cfg, TypeEnv *env) {
 
     LivenessResult *result = malloc(sizeof(LivenessResult));
     if (result == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     result->cfg = cfg;
@@ -797,7 +797,7 @@ LivenessResult *liveness_analyze(CFG *cfg, TypeEnv *env) {
     result->ig_nodes = malloc(sizeof(IGLivenessNode) * (size_t)cfg->count);
     if (result->ig_nodes == NULL) {
         free(result);
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     for (int i = 0; i < cfg->count; i++) {
@@ -842,7 +842,7 @@ static void dump_liveset(TypeEnv *env, LiveSet set, FILE *out) {
 void liveness_dump(const LivenessResult *result, FILE *out) {
     if (result == NULL || result->cfg == NULL || result->env == NULL ||
         out == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null liveness dump");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null liveness dump");
     }
 
     for (int i = 0; i < result->cfg->count; i++) {

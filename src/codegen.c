@@ -11,10 +11,10 @@
 #define LABEL_BUFFER_SIZE 128
 #define CYCLE_LIST_BUFFER_SIZE (PC_COUNT * 4 + 1)
 
-#define die_internal_null die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "null pointer exception during codegen");
+#define die_internal_null die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null pointer exception during codegen");
 
 static noreturn void die_internal_error(const char *msg) {
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, msg);
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, msg);
 }
 
 struct CodeGen {
@@ -43,7 +43,7 @@ static void compile_statements(CodeGen *codegen, Statement **statements, int cou
 CodeGen *codegen_init( FILE *out, ProgramAST *ast, TypeEnv *env, RegTable *regs, const int *colouring ) {
     CodeGen *codegen = malloc(sizeof(CodeGen));
     if (codegen == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "memory exceeded, malloc failed when allocating Codegen");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "memory exceeded, malloc failed when allocating Codegen");
     }
 
     *codegen = (CodeGen) {
@@ -60,7 +60,7 @@ CodeGen *codegen_init( FILE *out, ProgramAST *ast, TypeEnv *env, RegTable *regs,
 
     if (codegen->written == NULL) {
         free(codegen);
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "memory exceeded, calloc failed when allocating Codegen");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "memory exceeded, calloc failed when allocating Codegen");
     }
 
     return codegen;
@@ -108,7 +108,7 @@ static void fresh_label(CodeGen *codegen, char *out, size_t out_size,
     int written = snprintf(out, out_size, "__%s_%d", prefix, label_id);
 
     if (written < 0 || (size_t)written >= out_size) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "failed to format label, ensure label buffer is large enough");
     }
 }
@@ -122,7 +122,7 @@ static int var_index(CodeGen *codegen, const char *name) {
     int index_of_var = typeenv_index(codegen->env, name);
 
     if (index_of_var == -1) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "variable %s missing during codegen", name);
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "variable %s missing during codegen", name);
     }
 
     return index_of_var;
@@ -134,22 +134,22 @@ static int register_for_var(CodeGen *codegen, const char *name) {
 
     VarEntry *entry = typeenv_lookup(codegen->env, name);
     if (entry == NULL || entry->type != TYPE_INT) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "register not found, or is not an integer");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "register not found, or is not an integer");
     }
 
     int reg = codegen->colouring[index];
     if (reg < 0 || reg >= codegen->regs->count) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "register not found");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "register not found");
     }
 
     if (reg == TEMP_REGISTER_INDEX) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "user variable '%s' was assigned reserved temp register R1", name);
     }
 
     if (reg == IO_REGISTER_INDEX && codegen->regs->r0_reserved &&
         strcmp(name, R0_SYNTHETIC_VARIABLE) != 0) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "user variable '%s' was assigned reserved I/O register R0", name);
     }
 
@@ -158,7 +158,7 @@ static int register_for_var(CodeGen *codegen, const char *name) {
 
 static void ensure_codegen_register_contract(RegTable *regs) {
     if (regs->count <= TEMP_REGISTER_INDEX) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "codegen requires R0 and reserved temp R1");
     }
 }
@@ -168,7 +168,7 @@ static void require_temp_can_hold(CodeGen *codegen, int reg_index, const char *c
     int reg_order = codegen->regs->regs[reg_index].order;
 
     if (temp_order < reg_order) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "%s requires temp order >= source order, got temp K=%d and R%d K=%d",
             context, temp_order, reg_index, reg_order);
     }
@@ -183,7 +183,7 @@ static int mod_reduce(int n, int k) {
 // Codegen uses this whenever it needs to invert or realise powers of a register.
 static void parse_register_algorithm(CodeGen *codegen, int reg_index, Alg *out) {
     if (!alg_parse(codegen->regs->regs[reg_index].algorithm, out)) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "failed to parse register algorithm during codegen");
     }
 }
@@ -222,7 +222,7 @@ static void cycle_list(CodeGen *codegen, const int reg_index, char *out,
                        size_t out_size) {
     CycleSet cycles = codegen->regs->regs[reg_index].cycles;
     if (out_size == 0) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "empty cycle list buffer");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "empty cycle list buffer");
     }
 
     out[0] = '\0';
@@ -235,14 +235,14 @@ static void cycle_list(CodeGen *codegen, const int reg_index, char *out,
 
         const char *piece_name = piece_to_string(i);
         if (piece_name == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "invalid piece index in cycle list");
         }
 
         int written = snprintf(out + used, out_size - used, "%s%s",
                                first ? "" : ",", piece_name);
         if (written < 0 || (size_t)written >= out_size - used) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "cycle list buffer too small");
         }
         used += (size_t)written;
@@ -678,7 +678,7 @@ static char *solved_piece_list(Cond *cond) {
 
     char *out = malloc(needed);
     if (out == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     out[0] = '\0';
@@ -696,7 +696,7 @@ static void append_alg_string(CodeGen *codegen, Alg *out, const char *text, int 
     Alg parsed = {0};
     if (!alg_parse(text, &parsed)) {
         alg_free(out);
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line, NULL),
             "invalid algorithm reached codegen");
     }
 
@@ -723,7 +723,7 @@ static void append_alg_expr(CodeGen *codegen, Alg *out, Expr *expr) {
             if (entry == NULL || entry->type != TYPE_ALG ||
                 !entry->alg_known || entry->alg_value == NULL) {
                 alg_free(out);
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "alg variable '%s' missing or unknown during codegen",
                     expr->var_name);
             }
@@ -747,7 +747,7 @@ static void append_alg_expr(CodeGen *codegen, Alg *out, Expr *expr) {
         case EXPR_LEQ:
         case EXPR_GEQ:
             alg_free(out);
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "non-alg expression reached apply codegen");
     }
 }
@@ -881,7 +881,7 @@ static bool expr_is_var_named(Expr *expr, const char *name) {
 static void compile_assignment(CodeGen *codegen, Statement *statement) {
     VarEntry *target_entry = typeenv_lookup(codegen->env, statement->assign.assign_name);
     if (target_entry == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "assignment target '%s' missing during codegen",
             statement->assign.assign_name);
     }
@@ -906,7 +906,7 @@ static void compile_assignment(CodeGen *codegen, Statement *statement) {
             break;
         case EXPR_ADD:
             if (!expr_is_var_named(rhs->bin_op.LHS, statement->assign.assign_name)) {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "non-primitive assignment reached codegen");
             }
             if (rhs->bin_op.RHS->kind == EXPR_INT_LIT) {
@@ -915,13 +915,13 @@ static void compile_assignment(CodeGen *codegen, Statement *statement) {
                 emit_add_variable(codegen, target_reg,
                                   register_for_var(codegen, rhs->bin_op.RHS->var_name));
             } else {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "non-primitive assignment reached codegen");
             }
             break;
         case EXPR_SUB:
             if (!expr_is_var_named(rhs->bin_op.LHS, statement->assign.assign_name)) {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "non-primitive assignment reached codegen");
             }
             if (rhs->bin_op.RHS->kind == EXPR_INT_LIT) {
@@ -930,12 +930,12 @@ static void compile_assignment(CodeGen *codegen, Statement *statement) {
                 emit_sub_variable(codegen, target_reg,
                                   register_for_var(codegen, rhs->bin_op.RHS->var_name));
             } else {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "non-primitive assignment reached codegen");
             }
             break;
         default:
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "non-primitive assignment reached codegen");
     }
 }
@@ -961,7 +961,7 @@ static void compile_let(CodeGen *codegen, Statement *statement) {
             emit_add_variable(codegen, target_reg, register_for_var(codegen, init->var_name));
             break;
         default:
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "non-primitive let reached codegen");
     }
 }
@@ -988,7 +988,7 @@ static void compile_statement(CodeGen *codegen, Statement *statement) {
             break;
         case STMT_INPUT: {
             if (!codegen->regs->r0_reserved) {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "input reached codegen while R0 is not reserved");
             }
             emit(codegen, "input \"%s\"", statement->input_prompt);
@@ -998,12 +998,12 @@ static void compile_statement(CodeGen *codegen, Statement *statement) {
             Expr *out_expr = statement->output_expr;
             int src_reg = IO_REGISTER_INDEX;
             if (out_expr != NULL && out_expr->kind != EXPR_VAR) {
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "non-variable output expression reached codegen");
             }
             if (out_expr == NULL) {
                 if (!codegen->regs->r0_reserved) {
-                    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+                    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                         "bare output reached codegen while R0 is not reserved");
                 }
             } else {

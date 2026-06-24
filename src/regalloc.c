@@ -187,7 +187,7 @@ static void regcache_push_owned(int order, CycleSet cycles, char *algorithm) {
         RegCacheEntry *new_entries = realloc(
             g_regcache, (size_t)new_cap * sizeof *new_entries);
         if (!new_entries)
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regcache");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regcache");
         g_regcache = new_entries;
         g_regcache_cap = new_cap;
     }
@@ -231,7 +231,7 @@ static void regcache_load(void) {
         }
 
         char *algorithm = malloc((size_t)alg_len + 1);
-        if (!algorithm) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regcache_load");
+        if (!algorithm) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regcache_load");
         if (fread(algorithm, 1, alg_len, fp) != alg_len) {
             free(algorithm);
             break;
@@ -316,7 +316,7 @@ static void regtable_push(RegTable *t, const RegEntry entry) {
     if (t->count == t->cap) {
         const int newcap = next_cap(t->cap);
         t->regs = realloc(t->regs, (size_t)newcap * sizeof(RegEntry));
-        if (!t->regs) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regtable_push");
+        if (!t->regs) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regtable_push");
         t->cap = newcap;
     }
     t->regs[t->count++] = entry;
@@ -336,7 +336,7 @@ void regalloc_init(RegTable *table) {
 
     Alg r0 = {0};
     if (!alg_parse(R0_ALGORITHM, &r0))
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "regalloc_init: could not parse R0 algorithm \"%s\"", R0_ALGORITHM);
 
     const CycleSet cs = cycleset_from_alg(&r0);
@@ -405,7 +405,7 @@ static void idas_emit_path(const Move *path, const int depth, Alg *out) {
         if (out->len == out->cap) {
             const int nc = next_cap(out->cap);
             out->m = realloc(out->m, (size_t)nc * sizeof(Move));
-            if (!out->m) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: idas_dfs");
+            if (!out->m) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: idas_dfs");
             out->cap = nc;
         }
         out->m[out->len++] = path[i];
@@ -457,7 +457,7 @@ static void idas_find(const CycleSet forbidden, const int required_order, Alg *o
     for (int limit = 1; limit <= REGALLOC_IDA_MAX_DEPTH; limit++)
         if (idas_dfs(id, path, 0, limit, -1, forbidden, required_order, out)) return;
 
-    die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, -1,
+    die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, NO_SITE,
         "register pressure too high: no disjoint cube algorithm of order >= %d found "
         "via CCS or IDA search depth %d",
         required_order, REGALLOC_IDA_MAX_DEPTH);
@@ -651,7 +651,7 @@ static int find_and_add_impl(RegTable *table, const CycleSet forbidden,
     const int order   = compute_order(&alg);
     if (required_order > 0 && order < required_order) {
         alg_free(&alg);
-        die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, -1,
+        die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, NO_SITE,
             "no disjoint algorithm with order >= %d found "
             "(CCS tried known templates up to order 1260; "
             "IDA fallback depth %d)", required_order, REGALLOC_IDA_MAX_DEPTH);
@@ -728,16 +728,16 @@ static void check_invariants(const RegTable *table, const InterferenceGraph *ig,
         const int a_idx = ig->nodes[i].var_index;
         const int ra    = coloring[a_idx];
         if (ra < 0)
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "regalloc invariant: \"%s\" was not assigned a register",
                 ig->nodes[i].name);
         if (table->r0_reserved &&
             !cycleset_disjoint(table->regs[ra].cycles, table->regs[0].cycles))
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "regalloc invariant: \"%s\" assigned R%d overlaps R0",
                 ig->nodes[i].name, ra);
         if (ra == 1 || !cycleset_disjoint(table->regs[ra].cycles, table->regs[1].cycles))
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "regalloc invariant: \"%s\" assigned R%d overlaps reserved temp R1",
                 ig->nodes[i].name, ra);
         for (uint64_t bits = (uint64_t)ig->nodes[i].neighbours; bits; bits &= bits - 1) {
@@ -745,7 +745,7 @@ static void check_invariants(const RegTable *table, const InterferenceGraph *ig,
             const int rb    = coloring[b_idx];
             if (rb < 0) continue;
             if (!cycleset_disjoint(table->regs[ra].cycles, table->regs[rb].cycles))
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                     "regalloc invariant: interfering variables share overlapping registers R%d and R%d", ra, rb);
         }
     }
@@ -779,7 +779,7 @@ static void realize_temp(RegTable *table, const InterferenceGraph *ig,
     } else {
         if (!ccs_find_small_register(forbidden, max_var_order, true, &temp) &&
             !ccs_find_small_register(forbidden, max_var_order, false, &temp)) {
-            die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, -1,
+            die(EXIT_CODE_REGALLOC, STAGE_REGALLOC, NO_SITE,
                 "no register with order >= %d available for the scratch slot; "
                 "program uses too many cube pieces", max_var_order);
         }
@@ -797,13 +797,13 @@ int *regalloc_run(RegTable *table, const InterferenceGraph *ig) {
     const int env_count = ig->env->count;
 
     int *coloring = malloc((size_t)env_count * sizeof(int));
-    if (!coloring) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regalloc_run");
+    if (!coloring) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regalloc_run");
     for (int i = 0; i < env_count; i++) coloring[i] = -1;
     coloring[0] = 0; /* R0 pre-assigned */
 
     /* Sort nodes by degree desc, alphabetical tiebreak. */
     IGNode **sorted = malloc((size_t)ig->count * sizeof(IGNode *));
-    if (!sorted) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regalloc_run sort");
+    if (!sorted) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regalloc_run sort");
     for (int i = 0; i < ig->count; i++) sorted[i] = &ig->nodes[i];
     qsort(sorted, (size_t)ig->count, sizeof(IGNode *), cmp_node_degree_desc);
 
@@ -858,7 +858,7 @@ void regalloc_dump(const RegTable *table, const InterferenceGraph *ig,
     }
 
     IGNode **sorted = malloc((size_t)ig->count * sizeof(IGNode *));
-    if (!sorted) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: regalloc_dump");
+    if (!sorted) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: regalloc_dump");
     for (int i = 0; i < ig->count; i++) sorted[i] = &ig->nodes[i];
     qsort(sorted, (size_t)ig->count, sizeof(IGNode *), cmp_node_name_asc);
 

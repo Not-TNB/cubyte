@@ -76,13 +76,13 @@ typedef struct {
 
 static void require_stage(const void *fn, const char *stage_name) {
     if (fn == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "pipeline stage '%s' is not linked", stage_name);
     }
 }
 
 static void usage(const char *program_name) {
-    die(EXIT_FAILURE, "main", 0,
+    die(EXIT_FAILURE, "main", NO_SITE,
         "Usage: %s [--dump-ast] [--dump-desugar] [--dump-cfg] "
         "[--dump-liveness] [--dump-ig] [--dump-regs] [--dump-preprocessor] "
         "[--physical] <input.cbyte> <output.s>",
@@ -120,7 +120,7 @@ static MainOptions parse_options(int argc, char **argv) {
         const char *arg = argv[i];
         if (strncmp(arg, "--", 2) == 0) {
             if (!parse_flag(&opts, arg)) {
-                die(EXIT_FAILURE, "main", 0, "unknown flag '%s'", arg);
+                die(EXIT_FAILURE, "main", NO_SITE, "unknown flag '%s'", arg);
             }
             continue;
         }
@@ -163,7 +163,7 @@ static void dump_preprocessor_output(const char *input_file_name) {
 
     if (input_length < suffix_len ||
         strcmp(input_file_name + input_length - suffix_len, suffix) != 0) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "dump-preprocessor: expected filename ending in '.cbyte', got '%s'",
             input_file_name);
     }
@@ -171,7 +171,7 @@ static void dump_preprocessor_output(const char *input_file_name) {
     const size_t base_length = input_length - suffix_len;
     char *preprocessed_path = malloc(base_length + sizeof("-pp.cbyte"));
     if (preprocessed_path == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "Malloc failed while building preprocessor output path");
     }
     memcpy(preprocessed_path, input_file_name, base_length);
@@ -179,7 +179,7 @@ static void dump_preprocessor_output(const char *input_file_name) {
 
     FILE *input = fopen(preprocessed_path, "r");
     if (input == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "dump-preprocessor: failed to open '%s': %s",
             preprocessed_path, strerror(errno));
     }
@@ -190,7 +190,7 @@ static void dump_preprocessor_output(const char *input_file_name) {
         if (fwrite(buf, 1, n, stdout) != n) {
             fclose(input);
             free(preprocessed_path);
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "dump-preprocessor: failed to write to stdout: %s",
                 strerror(errno));
         }
@@ -425,14 +425,14 @@ int main(int argc, char **argv) {
     require_stage((const void *)codegen_program, "codegen");
     out = fopen(opts.output_file_name, "w");
     if (out == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "failed to open '%s' for writing: %s",
             opts.output_file_name, strerror(errno));
     }
     codegen_program(out, desugared_program, &type_env, &regs, colouring);
     if (fclose(out) != 0) {
         out = NULL;
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "failed to close '%s': %s",
             opts.output_file_name, strerror(errno));
     }

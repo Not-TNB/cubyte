@@ -129,12 +129,12 @@ static const char *skip_ws(const char *s) {
 static void parse_define_directive(const char *p, int line_no) {
     p = skip_ws(p);
     if (*p == '\0') {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
             "#define missing macro name");
     }
 
     if (!is_ident_start(*p)) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
             "#define expected identifier, got '%c'", *p);
     }
 
@@ -162,7 +162,7 @@ static void parse_define_directive(const char *p, int line_no) {
             for (;;) {
                 p = skip_ws(p);
                 if (!is_ident_start(*p)) {
-                    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+                    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
                         "malformed #define for function-like macro '%.*s'",
                         (int)name_len, name_start);
                 }
@@ -188,7 +188,7 @@ static void parse_define_directive(const char *p, int line_no) {
                     p++;
                     break;
                 }
-                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+                die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
                     "malformed #define for function-like macro '%.*s' "
                     "(expected ',' or ')')",
                     (int)name_len, name_start);
@@ -206,7 +206,7 @@ static void parse_define_directive(const char *p, int line_no) {
     }
 
     if (body_len == 0 && !is_function) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
             "#define missing body for macro '%.*s'", (int)name_len, name_start);
     }
 
@@ -214,7 +214,7 @@ static void parse_define_directive(const char *p, int line_no) {
     // Reject redefinition.
     Macro *existing = find_macro(name, (int)name_len);
     if (existing != NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, line_no,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, errsite_at_line(line_no, NULL),
             "redefinition of macro '%s' (previously defined on line %d)",
             name, existing->defined_line);
     }
@@ -430,7 +430,7 @@ static const char *parse_arg_list(const char *p, Buf *args,
         p++;
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
         "unterminated macro argument list");
     return NULL; // unreachable
 }
@@ -493,7 +493,7 @@ static void substitute_params(const char *body, size_t body_len,
 // recursive call.
 static void expand_substring(const char *src, size_t len, Buf *out, int depth) {
     if (depth > MAX_MACRO_EXPANSION_DEPTH) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "macro expansion exceeded depth limit (possible recursion)");
     }
 
@@ -666,16 +666,17 @@ void preprocess(const char *filename) {
 
     if (filename_length < suffix_len ||
         strcmp(filename + filename_length - suffix_len, suffix) != 0) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "preprocess: expected filename ending in '.cbyte', got '%s'",
             filename);
     }
 
     const size_t base_length = filename_length - suffix_len;
-    char *input_path = calloc(base_length + suffix_len + 1, sizeof(char));
+    char *input_path  = calloc(base_length + suffix_len + 1, sizeof(char));
     char *output_path = calloc(base_length + sizeof("-pp.cbyte"), sizeof(char));
+    char *lines_path  = calloc(base_length + sizeof("-pp.lines"), sizeof(char));
 
-    if (input_path == NULL || output_path == NULL) {
+    if (input_path == NULL || output_path == NULL || lines_path == NULL) {
         perror("Malloc failed");
         exit(EXIT_FAILURE);
     }
@@ -684,13 +685,17 @@ void preprocess(const char *filename) {
     strcat(input_path, suffix);
     memcpy(output_path, filename, base_length);
     strcat(output_path, "-pp.cbyte");
+    memcpy(lines_path, filename, base_length);
+    strcat(lines_path, "-pp.lines");
 
-    FILE *input = fopen(input_path, "r");
+    FILE *input  = fopen(input_path, "r");
     FILE *output = fopen(output_path, "w");
+    FILE *lines  = fopen(lines_path, "w");
 
-    if (input == NULL || output == NULL) {
+    if (input == NULL || output == NULL || lines == NULL) {
         free(input_path);
         free(output_path);
+        free(lines_path);
         perror("File open failed");
         exit(EXIT_FAILURE);
     }
@@ -699,20 +704,26 @@ void preprocess(const char *filename) {
     collect_macros(input);
 
     // Pass 2: re-read source, strip comments, drop #define lines, expand
-    // remaining macros.
+    // remaining macros. For each line written to the pp output, write the
+    // original source line number to the .lines sidecar so the lexer can
+    // map preprocessed-file line numbers back to original-file line numbers.
     rewind(input);
 
     char *line = malloc(MAX_LINE_LENGTH);
     if (line == NULL) {
         free(input_path);
         free(output_path);
+        free(lines_path);
         fclose(input);
         fclose(output);
+        fclose(lines);
         perror("Malloc failed");
         exit(EXIT_FAILURE);
     }
 
+    int orig_line_no = 0;
     while (fgets(line, MAX_LINE_LENGTH, input) != NULL) {
+        orig_line_no++;
         strip_line_comment(line);
         if (line_starts_with_define(line)) {
             // Definition already collected in pass 1; don't emit it.
@@ -722,14 +733,24 @@ void preprocess(const char *filename) {
         buf_init(&expanded);
         expand_substring(line, strlen(line), &expanded, 0);
         fputs(expanded.data, output);
+        // Each source line must contribute exactly one newline to the pp file
+        // so that .lines[i] == the original source line for pp line i.
+        // strip_line_comment NUL-terminates at '//', losing the trailing '\n'
+        // for comment-only lines, so we re-add it here.
+        if (expanded.len == 0 || expanded.data[expanded.len - 1] != '\n') {
+            fputc('\n', output);
+        }
+        fprintf(lines, "%d\n", orig_line_no);
         buf_free(&expanded);
     }
 
     free_macro_table();
+    free(lines_path);
     free(output_path);
     free(input_path);
     free(line);
 
+    fclose(lines);
     fclose(input);
     fclose(output);
 }

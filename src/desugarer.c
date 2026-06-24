@@ -28,7 +28,7 @@ static char *desugarer_strdup(const char *s) {
     size_t len = strlen(s) + 1;
     char *copy = malloc(len);
     if (copy == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     memcpy(copy, s, len);
@@ -37,7 +37,7 @@ static char *desugarer_strdup(const char *s) {
 
 static void append_statement_to_program(ProgramAST *ast, Statement *stmt) {
     if (ast == NULL || stmt == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "null statement append in desugarer");
     }
 
@@ -46,7 +46,7 @@ static void append_statement_to_program(ProgramAST *ast, Statement *stmt) {
         Statement **new_statements =
             realloc(ast->statements, sizeof(Statement *) * (size_t)new_capacity);
         if (new_statements == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         ast->statements = new_statements;
@@ -99,13 +99,13 @@ static char *fresh_temp_name(TypeEnv *type_env) {
     int suffix = type_env->count;
     int needed = snprintf(NULL, 0, "__t%d", suffix);
     if (needed < 0) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "failed to format temp name");
     }
 
     char *name = malloc((size_t)needed + 1);
     if (name == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     snprintf(name, (size_t)needed + 1, "__t%d", suffix);
@@ -115,7 +115,7 @@ static char *fresh_temp_name(TypeEnv *type_env) {
 static Expr *make_int_expr(int value) {
     Expr *expr = malloc(sizeof(Expr));
     if (expr == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     *expr = (Expr){
@@ -129,7 +129,7 @@ static Expr *make_int_expr(int value) {
 static Expr *make_var_expr(const char *name) {
     Expr *expr = malloc(sizeof(Expr));
     if (expr == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     *expr = (Expr){
@@ -151,7 +151,7 @@ static Expr *make_atom_expr(const char *rhs_name, int rhs_val) {
 static Statement *make_int_decl_stmt(char *owned_name, Expr *owned_init) {
     Statement *stmt = malloc(sizeof(Statement));
     if (stmt == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     *stmt = (Statement){
@@ -170,7 +170,7 @@ static void make_assign_stmt(ProgramAST *new_ast, const char *var_name,
                              bool add, const char *rhs_name, int rhs_val) {
     Expr *binop = malloc(sizeof(Expr));
     if (binop == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     *binop = (Expr){
@@ -185,7 +185,7 @@ static void make_assign_stmt(ProgramAST *new_ast, const char *var_name,
     Statement *stmt = malloc(sizeof(Statement));
     if (stmt == NULL) {
         free_expr_local(binop);
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     *stmt = (Statement){
@@ -227,7 +227,7 @@ static bool expr_contains_var(Expr *expr, const char *name) {
             return false;
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
 }
 
 static bool expr_is_var_named(const Expr *expr, const char *name) {
@@ -285,19 +285,19 @@ static void expr_substitute_var(Expr *expr, const char *old_name,
             return;
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
 }
 
 static int fold_ord_to_int(TypeEnv *env, const char *alg_var_name) {
     VarEntry *entry = typeenv_lookup(env, alg_var_name);
     if (entry == NULL || entry->type != TYPE_ALG || !entry->alg_known) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "ord() on unresolved alg variable '%s'", alg_var_name);
     }
 
     Alg parsed = {0};
     if (!alg_parse(entry->alg_value, &parsed)) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "invalid alg string for '%s'", alg_var_name);
     }
 
@@ -309,7 +309,7 @@ static int fold_ord_to_int(TypeEnv *env, const char *alg_var_name) {
 static void dfs_through_expression(Expr *expr, ProgramAST *new_ast, TypeEnv *env,
                                    bool add, const char *var_name) {
     if (expr == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "null expression in desugarer");
     }
 
@@ -350,11 +350,11 @@ static void dfs_through_expression(Expr *expr, ProgramAST *new_ast, TypeEnv *env
         case EXPR_GT:
         case EXPR_LEQ:
         case EXPR_GEQ:
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "non-int expression reached int desugarer");
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
 }
 
 static void desugar_block(Statement *block, TypeEnv *type_env) {
@@ -362,7 +362,7 @@ static void desugar_block(Statement *block, TypeEnv *type_env) {
         return;
     }
     if (block->kind != STMT_BLOCK) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "expected block statement in desugarer");
     }
 
@@ -496,7 +496,7 @@ static void turn_stmt_into_primitive(Statement *stmt, TypeEnv *type_env,
 
 ProgramAST *desugared_statement_ast(ProgramAST *program_ast, TypeEnv *type_env) {
     if (program_ast == NULL || type_env == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null desugarer input");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null desugarer input");
     }
 
     ProgramAST *new_ast = init_program_ast();

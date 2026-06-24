@@ -32,6 +32,7 @@ typedef enum {
 typedef struct Expr {
     ExprKind kind;
     TypeKind type;
+    int line;
 
     union {
         int int_val; // For integer literals
@@ -61,6 +62,7 @@ typedef enum {
 
 typedef struct Statement {
     StatementKind kind;
+    int line;
 
     union {
         // STMT_DECL: let [int|alg] name := expr ;
@@ -163,6 +165,7 @@ typedef struct {
     Statement **statements;
     int count;
     int capacity;
+    const char *source_filename; // original source file, for error messages
 } ProgramAST;
 
 // Initialise a program

@@ -22,6 +22,7 @@ third_party/ckociemba/bin/kociemba
 
 # ignore preprocessor output
 *-pp.cbyte
+*-pp.lines
 
 #ignore junk files from compiling Haskell code
 *.hi

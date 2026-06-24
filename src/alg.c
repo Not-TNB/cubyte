@@ -29,7 +29,7 @@ static void alg_ensure_cap(Alg *a, const int needed) {
     int newcap = next_cap(a->cap);
     while (newcap < needed) newcap *= 2;
     Move *p = realloc(a->m, (size_t)newcap * sizeof(Move));
-    if (!p) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: alg_ensure_cap");
+    if (!p) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: alg_ensure_cap");
     a->m   = p;
     a->cap = newcap;
 }
@@ -74,13 +74,13 @@ void alg_concat(Alg *dst, const Alg *src) {
 char *alg_to_string(const Alg *a) {
     if (a->len == 0) {
         char *s = malloc(1);
-        if (!s) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: alg_to_string");
+        if (!s) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: alg_to_string");
         s[0] = '\0';
         return s;
     }
 
     char *s = malloc(3 * (size_t)a->len + 1);
-    if (!s) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "OOM: alg_to_string");
+    if (!s) die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "OOM: alg_to_string");
     static const char face_chars[] = "UDLRFB";
     int pos = 0;
 

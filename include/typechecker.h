@@ -74,6 +74,9 @@ typedef struct {
     VarEntry *entries;
     int count;
     int capacity;
+    /* Borrowed pointer to the source filename, set by typecheck_program.
+     * Used to include file:line in typecheck error messages. May be NULL. */
+    const char *source_filename;
 } TypeEnv;
 
 typedef struct {

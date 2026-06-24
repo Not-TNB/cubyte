@@ -67,11 +67,13 @@ int sourcemap_translate(const SourceMap *source_map, int pp_line);
  * Build an ErrSite pointing at `token`'s line/column (after translation
  * through `source_map` if non-NULL). `filename` is borrowed. The returned
  * ErrSite is value-typed; no allocation, no ownership.
+ *
+ * Declared with an opaque pointer so that util.h can be included without
+ * pulling in lexer.h. Callers in lexer.c pass their Token * directly.
  */
-struct Token;
-ErrSite errsite_from_token(struct Token *token,
-                           const SourceMap *source_map,
-                           const char *filename);
+ErrSite errsite_from_token_at(unsigned int tok_line, unsigned int tok_column,
+                              const SourceMap *source_map,
+                              const char *filename);
 
 /*
  * Convenience: build an ErrSite at a known source line, with column 0 and
@@ -84,9 +86,12 @@ ErrSite errsite_at_line(int line, const char *filename);
  * Build an ErrSite from a Lexer's current position. `source_map` is the
  * optional line-remap (NULL = identity). Used by the lexer itself.
  */
-ErrSite errsite_from_lexer(const struct SourceMap *source_map,
+ErrSite errsite_from_lexer(const SourceMap *source_map,
                            const char *filename,
                            int line, int column);
+
+/* Zero-initialized ErrSite — use for internal errors with no source location. */
+#define NO_SITE ((ErrSite){0})
 
 /* Standard dynamic-array capacity doubling: initial size 8, then 2×. */
 static inline int next_cap(int cap) { return cap ? cap * 2 : 8; }

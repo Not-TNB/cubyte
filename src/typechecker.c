@@ -16,7 +16,7 @@ static char *typechecker_strdup(const char *s) {
     size_t len = strlen(s) + 1;
     char *copy = malloc(len);
     if (copy == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     memcpy(copy, s, len);
@@ -42,12 +42,12 @@ static bool is_forbidden_alg_name(const char *name) {
  */
 void typeenv_init(TypeEnv *env) {
     if (env == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null type env");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null type env");
     }
 
     env->entries = malloc(sizeof(VarEntry) * TYPECHECKER_INITIAL_CAPACITY);
     if (env->entries == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     env->count = 1;
@@ -146,14 +146,14 @@ void typeenv_free(TypeEnv *env) {
  */
 bool typeenv_declare(TypeEnv *env, const char *name, TypeKind type, int line) {
     if (env == NULL || name == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null type env declaration");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null type env declaration");
     }
 
     if (typeenv_lookup(env, name) != NULL) {
         /*
             one variable name should mean one thing for the whole program
          */
-        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, line,
+        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(line, env->source_filename),
             "variable '%s' already declared", name);
     }
 
@@ -162,7 +162,7 @@ bool typeenv_declare(TypeEnv *env, const char *name, TypeKind type, int line) {
             alg variables cannot steal names like U/R/F because those already
             mean cube moves inside algorithm strings
          */
-        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, line,
+        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(line, env->source_filename),
             "alg variable cannot be named '%s'", name);
     }
 
@@ -177,7 +177,7 @@ bool typeenv_declare(TypeEnv *env, const char *name, TypeKind type, int line) {
         VarEntry *new_entries = realloc(env->entries,
                                         sizeof(VarEntry) * new_capacity);
         if (new_entries == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         env->entries = new_entries;
@@ -212,12 +212,12 @@ bool typeenv_declare(TypeEnv *env, const char *name, TypeKind type, int line) {
  */
 void labelset_init(LabelSet *labels) {
     if (labels == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null label set");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null label set");
     }
 
     labels->labels = malloc(sizeof(char *) * TYPECHECKER_INITIAL_CAPACITY);
     if (labels->labels == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
     }
 
     labels->count = 0;
@@ -269,7 +269,7 @@ bool labelset_contains(LabelSet *labels, const char *name) {
  */
 bool labelset_add(LabelSet *labels, const char *name, int line) {
     if (labels == NULL || name == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null label declaration");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null label declaration");
     }
 
     if (labelset_contains(labels, name)) {
@@ -277,7 +277,7 @@ bool labelset_add(LabelSet *labels, const char *name, int line) {
             If two labels have the same name, a goto would not have one clear
             destination
          */
-        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, line,
+        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(line, NULL),
             "label '%s' has already been declared", name);
     }
 
@@ -286,7 +286,7 @@ bool labelset_add(LabelSet *labels, const char *name, int line) {
         char **new_labels = realloc(labels->labels,
                                     sizeof(char *) * new_capacity);
         if (new_labels == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "realloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "realloc failed");
         }
 
         labels->labels = new_labels;
@@ -328,7 +328,7 @@ static void collect_labels_from_statement(Statement *stmt, LabelSet *labels) {
 
     switch (stmt->kind) {
     case STMT_LABEL:
-        labelset_add(labels, stmt->label_name, 0);
+        labelset_add(labels, stmt->label_name, stmt->line);
         break;
 
     case STMT_IF:
@@ -366,7 +366,7 @@ static void collect_labels_from_statement(Statement *stmt, LabelSet *labels) {
  */
 void typecheck_collect_labels(ProgramAST *program, LabelSet *labels) {
     if (program == NULL || labels == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null label collection");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null label collection");
     }
 
     collect_labels_from_statements(program->statements, program->count, labels);
@@ -392,9 +392,9 @@ static const char *typekind_name(TypeKind type) {
     only compares the resolved type and gives a useful error if it is wrong.
  */
 static void require_expr_type(TypeKind actual, TypeKind expected,
-                              const char *context) {
+                              const char *context, int line) {
     if (actual != expected) {
-        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(line, NULL),
             "%s expected %s but got %s",
             context, typekind_name(expected), typekind_name(actual));
     }
@@ -413,7 +413,7 @@ static void require_expr_type(TypeKind actual, TypeKind expected,
  */
 TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
     if (env == NULL || expr == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null expression");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null expression");
     }
 
     switch (expr->kind) {
@@ -428,7 +428,7 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
     case EXPR_VAR: {
         VarEntry *entry = typeenv_lookup(env, expr->var_name);
         if (entry == NULL) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(expr->line, env->source_filename),
                 "variable '%s' has not been declared", expr->var_name);
         }
         expr->type = entry->type;
@@ -439,15 +439,15 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
     case EXPR_SUB: {
         TypeKind left  = typecheck_expr(env, expr->bin_op.LHS);
         TypeKind right = typecheck_expr(env, expr->bin_op.RHS);
-        require_expr_type(left,  TYPE_INT, "arithmetic left side");
-        require_expr_type(right, TYPE_INT, "arithmetic right side");
+        require_expr_type(left,  TYPE_INT, "arithmetic left side",  expr->bin_op.LHS->line);
+        require_expr_type(right, TYPE_INT, "arithmetic right side", expr->bin_op.RHS->line);
         expr->type = TYPE_INT;
         return expr->type;
     }
 
     case EXPR_NEG: {
         TypeKind operand = typecheck_expr(env, expr->unary_op);
-        require_expr_type(operand, TYPE_INT, "negation");
+        require_expr_type(operand, TYPE_INT, "negation", expr->unary_op->line);
         expr->type = TYPE_INT;
         return expr->type;
     }
@@ -455,8 +455,8 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
     case EXPR_CONCAT: {
         TypeKind left  = typecheck_expr(env, expr->bin_op.LHS);
         TypeKind right = typecheck_expr(env, expr->bin_op.RHS);
-        require_expr_type(left,  TYPE_ALG, "concat left side");
-        require_expr_type(right, TYPE_ALG, "concat right side");
+        require_expr_type(left,  TYPE_ALG, "concat left side",  expr->bin_op.LHS->line);
+        require_expr_type(right, TYPE_ALG, "concat right side", expr->bin_op.RHS->line);
         expr->type = TYPE_ALG;
         return expr->type;
     }
@@ -465,15 +465,15 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
         /* ord(a) — var_name holds the alg variable name in the current AST. */
         VarEntry *entry = typeenv_lookup(env, expr->var_name);
         if (entry == NULL) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(expr->line, env->source_filename),
                 "variable '%s' has not been declared", expr->var_name);
         }
         if (entry->type != TYPE_ALG) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(expr->line, env->source_filename),
                 "ord expected alg but got %s", typekind_name(entry->type));
         }
         if (!entry->alg_known) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "alg variable '%s' is not compile-time known", expr->var_name);
         }
 
@@ -503,7 +503,7 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
         return expr->type;
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
 }
 
 /*
@@ -520,7 +520,7 @@ TypeKind typecheck_expr(TypeEnv *env, Expr *expr) {
  * themselves Expr nodes, already typechecked recursively. */
 void typecheck_cond(TypeEnv *env, Expr *cond) {
     if (env == NULL || cond == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null condition");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null condition");
     }
 
     switch (cond->kind) {
@@ -531,8 +531,8 @@ void typecheck_cond(TypeEnv *env, Expr *cond) {
     case EXPR_GEQ: {
         TypeKind lhs = typecheck_expr(env, cond->bin_op.LHS);
         TypeKind rhs = typecheck_expr(env, cond->bin_op.RHS);
-        require_expr_type(lhs, TYPE_INT, "comparison left side");
-        require_expr_type(rhs, TYPE_INT, "comparison right side");
+        require_expr_type(lhs, TYPE_INT, "comparison left side",  cond->bin_op.LHS->line);
+        require_expr_type(rhs, TYPE_INT, "comparison right side", cond->bin_op.RHS->line);
         break;
     }
 
@@ -541,7 +541,7 @@ void typecheck_cond(TypeEnv *env, Expr *cond) {
          * parser; validate each one is a real piece. */
         for (int i = 0; cond->pieces[i] != PC_COUNT; i++) {
             if ((int)cond->pieces[i] < 0 || (int)cond->pieces[i] >= PC_COUNT) {
-                die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+                die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(cond->line, env->source_filename),
                     "unknown piece in solved[...]");
             }
         }
@@ -552,7 +552,7 @@ void typecheck_cond(TypeEnv *env, Expr *cond) {
         break;
 
     default:
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
             "expression used as condition is not a valid condition kind");
     }
 }
@@ -567,7 +567,7 @@ void typecheck_cond(TypeEnv *env, Expr *cond) {
  */
 static char *known_alg_expr(TypeEnv *env, Expr *expr) {
     if (env == NULL || expr == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null alg expression");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null alg expression");
     }
 
     switch (expr->kind) {
@@ -597,7 +597,7 @@ static char *known_alg_expr(TypeEnv *env, Expr *expr) {
         bool needs_space = llen > 0 && rlen > 0;
         char *combined = malloc(llen + rlen + (needs_space ? 2 : 1));
         if (combined == NULL) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "malloc failed");
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "malloc failed");
         }
 
         memcpy(combined, left, llen);
@@ -629,8 +629,8 @@ static char *known_alg_expr(TypeEnv *env, Expr *expr) {
         return NULL;
     }
 
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown expression kind");
 }
 
 /*
@@ -641,7 +641,7 @@ static char *known_alg_expr(TypeEnv *env, Expr *expr) {
 static void update_alg_value(TypeEnv *env, VarEntry *entry, Expr *rhs, int line) {
     char *value = known_alg_expr(env, rhs);
     if (value == NULL) {
-        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, line,
+        die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(line, NULL),
             "alg assignment requires compile-time-known rhs");
     }
 
@@ -654,7 +654,7 @@ static void assert_all_alg_values_known(TypeEnv *env) {
     for (int i = 0; i < env->count; i++) {
         if (env->entries[i].type == TYPE_ALG &&
             (!env->entries[i].alg_known || env->entries[i].alg_value == NULL)) {
-            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0,
+            die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
                 "alg variable '%s' is not compile-time known",
                 env->entries[i].name);
         }
@@ -677,7 +677,7 @@ static void typecheck_statements(TypeEnv *env, LabelSet *labels,
  */
 void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
     if (env == NULL || labels == NULL || stmt == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null statement");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null statement");
     }
 
     switch (stmt->kind) {
@@ -687,27 +687,27 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
         Expr        *init     = stmt->decl.decl_value;
 
         if (typeenv_lookup(env, name) != NULL) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "variable '%s' already declared", name);
         }
 
         if (decltype == TYPE_ALG && is_forbidden_alg_name(name)) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "alg variable cannot be named '%s'", name);
         }
 
         TypeKind init_type = typecheck_expr(env, init);
         if (init_type != decltype) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "let '%s' expected %s but got %s",
                 name, typekind_name(decltype), typekind_name(init_type));
         }
 
-        typeenv_declare(env, name, decltype, 0);
+        typeenv_declare(env, name, decltype, stmt->line);
 
         VarEntry *entry = typeenv_lookup(env, name);
         if (decltype == TYPE_ALG) {
-            update_alg_value(env, entry, init, 0);
+            update_alg_value(env, entry, init, stmt->line);
         } else {
             /* int:N — record the required register order.
              * int_ord == 0 in the AST means the annotation was absent; treat as
@@ -721,20 +721,20 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
     case STMT_ASSIGN: {
         VarEntry *entry = typeenv_lookup(env, stmt->assign.assign_name);
         if (entry == NULL) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "variable '%s' has not been declared", stmt->assign.assign_name);
         }
 
         TypeKind rhs_type = typecheck_expr(env, stmt->assign.assign_value);
         if (rhs_type != entry->type) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "assignment to '%s' expected %s but got %s",
                 stmt->assign.assign_name, typekind_name(entry->type),
                 typekind_name(rhs_type));
         }
 
         if (entry->type == TYPE_ALG) {
-            update_alg_value(env, entry, stmt->assign.assign_value, 0);
+            update_alg_value(env, entry, stmt->assign.assign_value, stmt->line);
         }
 
         break;
@@ -757,7 +757,7 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
 
     case STMT_GOTO:
         if (!labelset_contains(labels, stmt->goto_label)) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "label '%s' has not been declared", stmt->goto_label);
         }
         break;
@@ -771,10 +771,10 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
             break;
         }
         if (stmt->output_expr->kind != EXPR_VAR) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "output expects a variable, or no operand for _io");
         }
-        require_expr_type(typecheck_expr(env, stmt->output_expr), TYPE_INT, "output");
+        require_expr_type(typecheck_expr(env, stmt->output_expr), TYPE_INT, "output", stmt->output_expr->line);
         break;
 
     case STMT_BLOCK:
@@ -785,13 +785,13 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
     case STMT_APPLY: {
         TypeKind alg_type = typecheck_expr(env, stmt->apply_expr);
         if (alg_type != TYPE_ALG) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "apply expected alg but got %s", typekind_name(alg_type));
         }
 
         char *value = known_alg_expr(env, stmt->apply_expr);
         if (value == NULL) {
-            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, 0,
+            die(EXIT_CODE_TYPECHECK, STAGE_TYPECHECK, errsite_at_line(stmt->line, env->source_filename),
                 "apply requires compile-time-known alg");
         }
         free(value);
@@ -799,7 +799,7 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
     }
 
     default:
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "unknown statement kind");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unknown statement kind");
     }
 }
 
@@ -812,8 +812,10 @@ void typecheck_statement(TypeEnv *env, LabelSet *labels, Statement *stmt) {
  */
 void typecheck_program(ProgramAST *program, TypeEnv *env) {
     if (program == NULL || env == NULL) {
-        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, 0, "null program");
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "null program");
     }
+
+    env->source_filename = program->source_filename;
 
     LabelSet labels;
     labelset_init(&labels);

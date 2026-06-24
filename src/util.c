@@ -1,7 +1,6 @@
 #include "../include/util.h"
 
 #include "../include/piece.h"
-#include "../include/lexer.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -20,16 +19,11 @@ int sourcemap_translate(const SourceMap *source_map, int pp_line) {
     return mapped > 0 ? mapped : pp_line;
 }
 
-ErrSite errsite_from_token(Token *token,
-                           const SourceMap *source_map,
-                           const char *filename) {
-    if (token == NULL) {
-        ErrSite empty = {0};
-        empty.filename = filename;
-        return empty;
-    }
+ErrSite errsite_from_token_at(unsigned int tok_line, unsigned int tok_column,
+                              const SourceMap *source_map,
+                              const char *filename) {
     return errsite_from_lexer(source_map, filename,
-                              (int)token->line, (int)token->column);
+                              (int)tok_line, (int)tok_column);
 }
 
 ErrSite errsite_at_line(int line, const char *filename) {
@@ -74,10 +68,21 @@ static void print_source_context(ErrSite site) {
 
 static void emit_diagnostic(const char *stage, ErrSite site,
                             const char *fmt, va_list args) {
-    if (site.filename != NULL) {
-        fprintf(stderr, "%s:", site.filename);
+    /* rustc-style: file:line:col: error[stage]: message */
+    if (site.filename != NULL && site.line > 0) {
+        if (site.column > 0)
+            fprintf(stderr, "%s:%d:%d: ", site.filename, site.line, site.column);
+        else
+            fprintf(stderr, "%s:%d: ", site.filename, site.line);
+    } else if (site.filename != NULL) {
+        fprintf(stderr, "%s: ", site.filename);
+    } else if (site.line > 0) {
+        if (site.column > 0)
+            fprintf(stderr, "%d:%d: ", site.line, site.column);
+        else
+            fprintf(stderr, "%d: ", site.line);
     }
-    fprintf(stderr, "%d:%d: error in %s: ", site.line, site.column, stage);
+    fprintf(stderr, "error[%s]: ", stage);
     vfprintf(stderr, fmt, args);
     fputc('\n', stderr);
     print_source_context(site);

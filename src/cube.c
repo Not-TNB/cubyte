@@ -267,7 +267,7 @@ int compute_order(const Alg *a) {
         cube_apply_sequence(&s, a);
         if (cube_is_identity(&s)) return n;
     }
-    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, -1, "unexpected: compute_order exceeded maximum possible order");
+    die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE, "unexpected: compute_order exceeded maximum possible order");
 }
 
 /* ---------------------------------------------------------------------------

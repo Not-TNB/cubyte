@@ -65,7 +65,7 @@ typedef struct {
     FILE *input;
     int current_line;
     int current_column;
-    const struct SourceMap *source_map; // optional, NULL = identity mapping
+    const SourceMap *source_map; // optional, NULL = identity mapping
     const char *source_filename;        // optional, NULL = no filename in errors
 } Lexer;
 

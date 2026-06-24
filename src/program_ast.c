@@ -16,7 +16,7 @@ static char *program_ast_strdup(const char *s) {
     const size_t len = strlen(s) + 1;
     char *copy = malloc(len);
     if (copy == NULL) {
-        die(EXIT_FAILURE, "parser", 0, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
     }
     memcpy(copy, s, len);
     return copy;
@@ -115,13 +115,13 @@ ProgramAST *init_program_ast() {
     ProgramAST *ast = malloc(sizeof(ProgramAST));
 
     if (ast == NULL) {
-        die(EXIT_FAILURE, "parser", 0, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
     }
 
     Statement **statements = malloc(sizeof(Statement *) * INITIAL_CAPACITY);
 
     if (statements == NULL) {
-        die(EXIT_FAILURE, "parser", 0, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
     }
 
     ast->statements = statements;
@@ -136,7 +136,7 @@ static void append_statement(ProgramAST *ast, Statement *statement) {
     if (ast->count >= ast->capacity) {
         ast->capacity *= 2;
         Statement **tmp = realloc(ast->statements, sizeof(Statement *) * ast->capacity);
-        if (tmp == NULL) die(EXIT_FAILURE, "parser", 0, "Malloc failed");
+        if (tmp == NULL) die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
         ast->statements = tmp;
     }
     ast->statements[ast->count++] = statement;
@@ -151,7 +151,7 @@ static void append_statement(ProgramAST *ast, Statement *statement) {
 Cond *convert_expr_into_cond(const Expr *expr) {
     Cond *cond = malloc(sizeof(Cond));
     if (cond == NULL) {
-        die(EXIT_FAILURE, "ast", 0, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
     }
 
     switch (expr->kind) {
@@ -163,7 +163,7 @@ Cond *convert_expr_into_cond(const Expr *expr) {
             char **piece_names = malloc(sizeof(char *) * count);
             if (piece_names == NULL) {
                 free(cond);
-                die(EXIT_FAILURE, "ast", 0, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
             }
             for (int i = 0; i < count; i++) {
                 piece_names[i] = NULL; // safe base for partial-free on die
@@ -174,7 +174,7 @@ Cond *convert_expr_into_cond(const Expr *expr) {
                     for (int j = 0; j < i; j++) free(piece_names[j]);
                     free(piece_names);
                     free(cond);
-                    die(EXIT_FAILURE, "ast", 0,
+                    die(EXIT_FAILURE, STAGE_PARSE, NO_SITE,
                         "convert_expr_into_cond: unknown piece label %d",
                         expr->pieces[i]);
                 }
@@ -227,14 +227,14 @@ Cond *convert_expr_into_cond(const Expr *expr) {
             }
 
             free(cond);
-            die(EXIT_FAILURE, "ast", 0,
+            die(EXIT_FAILURE, STAGE_PARSE, NO_SITE,
                 "convert_expr_into_cond: unsupported = operands "
                 "(expected var/int or var/var)");
         }
 
         default:
             free(cond);
-            die(EXIT_FAILURE, "ast", 0,
+            die(EXIT_FAILURE, STAGE_PARSE, NO_SITE,
                 "convert_expr_into_cond: cannot convert expression kind %d "
                 "into a condition", expr->kind);
     }
@@ -272,6 +272,50 @@ void free_cond(Cond *cond) {
     free(cond);
 }
 
+// Returns a human-readable name for a token type, for use in error messages.
+static const char *token_type_name(TokenType type) {
+    switch (type) {
+        case TOK_LET:          return "'let'";
+        case TOK_INT:          return "'int'";
+        case TOK_ALG:          return "'alg'";
+        case TOK_IF:           return "'if'";
+        case TOK_ELSE:         return "'else'";
+        case TOK_WHILE:        return "'while'";
+        case TOK_GOTO:         return "'goto'";
+        case TOK_INPUT:        return "'input'";
+        case TOK_OUTPUT:       return "'output'";
+        case TOK_APPLY:        return "'apply'";
+        case TOK_ORD:          return "'ord'";
+        case TOK_SOLVED:       return "'solved'";
+        case TOK_NOT:          return "'not'";
+        case TOK_PIECE_LABEL:  return "piece label";
+        case TOK_INT_LIT:      return "integer literal";
+        case TOK_ALG_LIT:      return "algorithm literal";
+        case TOK_STRING_LIT:   return "string literal";
+        case TOK_IDENT:        return "identifier";
+        case TOK_ASSIGN:       return "':='";
+        case TOK_COLON:        return "':'";
+        case TOK_CONCAT:       return "'++'";
+        case TOK_PLUS:         return "'+'";
+        case TOK_MINUS:        return "'-'";
+        case TOK_EQ:           return "'='";
+        case TOK_LT:           return "'<'";
+        case TOK_GT:           return "'>'";
+        case TOK_LEQ:          return "'<='";
+        case TOK_GEQ:          return "'>='";
+        case TOK_LBRACE:       return "'{'";
+        case TOK_RBRACE:       return "'}'";
+        case TOK_LBRACKET:     return "'('";
+        case TOK_RBRACKET:     return "')'";
+        case TOK_L_SQ_BRACKET: return "'['";
+        case TOK_R_SQ_BRACKET: return "']'";
+        case TOK_COMMA:        return "','";
+        case TOK_SEMICOLON:    return "';'";
+        case TOK_EOF:          return "end of file";
+    }
+    return "unknown token";
+}
+
 // One-token lookahead buffer for the recursive-descent parser
 static Token *peeked = NULL;
 static bool has_peeked = false;
@@ -294,51 +338,59 @@ static Token *take_token(Lexer *lexer) {
     return t;
 }
 
-// Consumes a token, asserting it matches the expected kind. On mismatch,
-// frees the token and returns false.
+// Consumes a token, asserting it matches the expected kind.
+// Dies with a human-readable error if the token does not match.
 static bool expect(Lexer *lexer, const TokenType type, Token **out) {
     Token *t = take_token(lexer);
     if (t == NULL || t->type != type) {
-        fprintf(stderr, "Parse error at line %u, column %u: expected token %d, got %d\n",
-                t ? t->line : 0, t ? t->column : 0, type, t ? t->type : UINT32_MAX);
+        ErrSite site = errsite_from_token_at(
+            t ? t->line : 0, t ? t->column : 0,
+            lexer->source_map, lexer->source_filename);
+        TokenType got = t ? t->type : TOK_EOF;
         free_token(t);
-        return false;
+        die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+            "expected %s, got %s", token_type_name(type), token_type_name(got));
     }
 
     *out = t;
-
     return true;
 }
 
-// Consumes a token, asserting it matches any of the expected kinds. On mismatch,
-// frees the token and returns false.
+// Consumes a token, asserting it matches any of the expected kinds.
+// Dies with a human-readable error listing the expected options if it does not.
 static bool expect_any_of(Lexer *lexer, const TokenType *types, const int n_types, Token **out) {
     Token *t = take_token(lexer);
 
-    if (t == NULL) {
-        fprintf(stderr, "Parse error at line %u, column %u: unexpected %d\n",
-                t ? t->line : 0, t ? t->column : 0, t ? t->type : UINT32_MAX);
-        free_token(t);
-        return false;
-    }
-
-    bool none_of_the_kinds = true;
-
-    for (int i = 0; i < n_types; i++) {
-        if (types[i] == t->type) {
-            none_of_the_kinds = false;
+    bool matched = false;
+    if (t != NULL) {
+        for (int i = 0; i < n_types; i++) {
+            if (types[i] == t->type) { matched = true; break; }
         }
     }
 
-    if (none_of_the_kinds) {
-        fprintf(stderr, "Parse error at line %u, column %u: unexpected %d\n",
-                t ? t->line : 0, t ? t->column : 0, t ? t->type : UINT32_MAX);
+    if (!matched) {
+        ErrSite site = errsite_from_token_at(
+            t ? t->line : 0, t ? t->column : 0,
+            lexer->source_map, lexer->source_filename);
+        TokenType got = t ? t->type : TOK_EOF;
         free_token(t);
-        return false;
+        // Build "expected X or Y" string from the types array.
+        if (n_types == 1) {
+            die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                "expected %s, got %s",
+                token_type_name(types[0]), token_type_name(got));
+        } else if (n_types == 2) {
+            die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                "expected %s or %s, got %s",
+                token_type_name(types[0]), token_type_name(types[1]),
+                token_type_name(got));
+        } else {
+            die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                "unexpected %s here", token_type_name(got));
+        }
     }
 
     *out = t;
-
     return true;
 }
 
@@ -378,7 +430,7 @@ static bool parse_eq(Lexer *lexer, Expr *expr) {
 
         Expr *rhs = malloc(sizeof(Expr));
         if (rhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         if (!parse_rel(lexer, rhs)) {
             free(rhs);
@@ -387,7 +439,7 @@ static bool parse_eq(Lexer *lexer, Expr *expr) {
 
         Expr *lhs = malloc(sizeof(Expr));
         if (lhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         *lhs = *expr;
 
@@ -419,7 +471,7 @@ static bool parse_rel(Lexer *lexer, Expr *expr) {
 
         Expr *rhs = malloc(sizeof(Expr));
         if (rhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         if (!parse_add(lexer, rhs)) {
             free(rhs);
@@ -428,7 +480,7 @@ static bool parse_rel(Lexer *lexer, Expr *expr) {
 
         Expr *lhs = malloc(sizeof(Expr));
         if (lhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         *lhs = *expr;
 
@@ -457,7 +509,7 @@ static bool parse_add(Lexer *lexer, Expr *expr) {
 
         Expr *rhs = malloc(sizeof(Expr));
         if (rhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         if (!parse_unary(lexer, rhs)) {
             free(rhs);
@@ -466,7 +518,7 @@ static bool parse_add(Lexer *lexer, Expr *expr) {
 
         Expr *lhs = malloc(sizeof(Expr));
         if (lhs == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
         *lhs = *expr;
 
@@ -480,30 +532,36 @@ static bool parse_add(Lexer *lexer, Expr *expr) {
 static bool parse_unary(Lexer *lexer, Expr *expr) {
     switch (peek_token(lexer)->type) {
         case TOK_MINUS: {
-            free_token(take_token(lexer));
+            Token *op = take_token(lexer);
+            int op_line = sourcemap_translate(lexer->source_map, (int)op->line);
+            free_token(op);
             Expr *inner = malloc(sizeof(Expr));
             if (inner == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_unary(lexer, inner)) {
                 free(inner);
                 return false;
             }
             expr->kind = EXPR_NEG;
+            expr->line = op_line;
             expr->unary_op = inner;
             return true;
         }
         case TOK_NOT: {
-            free_token(take_token(lexer));
+            Token *op = take_token(lexer);
+            int op_line = sourcemap_translate(lexer->source_map, (int)op->line);
+            free_token(op);
             Expr *inner = malloc(sizeof(Expr));
             if (inner == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_unary(lexer, inner)) {
                 free(inner);
                 return false;
             }
             expr->kind = EXPR_NOT;
+            expr->line = op_line;
             expr->unary_op = inner;
             return true;
         }
@@ -515,6 +573,7 @@ static bool parse_unary(Lexer *lexer, Expr *expr) {
 // Primary: int literal, alg literal, identifier, (e), solved [...], ord(name)
 static bool parse_primary(Lexer *lexer, Expr *expr) {
     Token *t = peek_token(lexer);
+    expr->line = sourcemap_translate(lexer->source_map, (int)t->line); // translate to original source line
 
     switch (t->type) {
         case TOK_INT_LIT: {
@@ -530,7 +589,7 @@ static bool parse_primary(Lexer *lexer, Expr *expr) {
             // The AST stores an Alg*, so heap-allocate and copy.
             Alg *alg = malloc(sizeof(Alg));
             if (alg == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             *alg = t->alg_val;
             expr->kind = EXPR_ALG_LIT;
@@ -587,7 +646,7 @@ static bool parse_primary(Lexer *lexer, Expr *expr) {
             int cap = 4, n = 0;
             PieceLabel *pieces = malloc(sizeof(PieceLabel) * cap);
             if (pieces == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
 
             // Empty list is allowed: solved []
@@ -602,7 +661,7 @@ static bool parse_primary(Lexer *lexer, Expr *expr) {
                         cap *= 2;
                         PieceLabel *tmp = realloc(pieces, sizeof(PieceLabel) * cap);
                         if (tmp == NULL) {
-                            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
                         }
                         pieces = tmp;
                     }
@@ -620,7 +679,7 @@ static bool parse_primary(Lexer *lexer, Expr *expr) {
             if (n >= cap) {
                 PieceLabel *tmp = realloc(pieces, sizeof(PieceLabel) * (cap + 1));
                 if (tmp == NULL) {
-                    die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                    die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
                 }
                 pieces = tmp;
             }
@@ -650,9 +709,11 @@ static bool parse_primary(Lexer *lexer, Expr *expr) {
         }
 
         default: {
-            fprintf(stderr, "Parse error at line %u, column %u: unexpected token in expression\n",
-                    t->line, t->column);
-            return false;
+            ErrSite site = errsite_from_token_at(
+                t->line, t->column, lexer->source_map, lexer->source_filename);
+            const char *name = token_type_name(t->type);
+            free_token(t);
+            die(EXIT_CODE_PARSE, STAGE_PARSE, site, "unexpected %s in expression", name);
         }
     }
 }
@@ -669,7 +730,7 @@ static bool parse_block(Lexer *lexer, Statement *block) {
     block->kind = STMT_BLOCK;
     block->block.block_stmts = malloc(sizeof(Statement *) * INITIAL_CAPACITY);
     if (block->block.block_stmts == NULL) {
-        die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
     }
     block->block.block_capacity = INITIAL_CAPACITY;
     block->block.block_count = 0;
@@ -677,7 +738,7 @@ static bool parse_block(Lexer *lexer, Statement *block) {
     while (peek_token(lexer)->type != TOK_RBRACE && peek_token(lexer)->type != TOK_EOF) {
         Statement *inner = malloc(sizeof(Statement));
         if (inner == NULL) {
-            die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
         }
 
         if (!parse_statement(lexer, inner)) {
@@ -690,7 +751,7 @@ static bool parse_block(Lexer *lexer, Statement *block) {
             Statement **tmp = realloc(block->block.block_stmts,
                                       sizeof(Statement *) * block->block.block_capacity);
             if (tmp == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             block->block.block_stmts = tmp;
         }
@@ -723,6 +784,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
     }
 
     Token *t = peek_token(lexer);
+    statement->line = sourcemap_translate(lexer->source_map, (int)t->line);
 
     switch (t->type) {
         case TOK_LET: {
@@ -733,27 +795,25 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
             Token *type_tok;
             const TokenType types[] = {TOK_INT, TOK_ALG};
 
-            if (!expect_any_of(lexer, types, 2, &type_tok)) {
-                fprintf(stderr, "Parse error: expected type keyword (int or alg) after let\n");
-                return false;
-            }
+            if (!expect_any_of(lexer, types, 2, &type_tok)) return false;
             const TypeKind tk = type_tok->type == TOK_INT ? TYPE_INT : TYPE_ALG;
             free_token(type_tok);
 
             if (tk == TYPE_INT) {
                 // Need to also check the register size
                 Token *colon_tok;
-                if (!expect(lexer, TOK_COLON, &colon_tok)) {
-                    fprintf(stderr, "Parse error: expected : after let int\n");
-                    free_token(colon_tok);
-                }
+                if (!expect(lexer, TOK_COLON, &colon_tok)) return false;
                 free_token(colon_tok);
 
-                Token *reg_size_tok;
-                if (!expect(lexer, TOK_INT_LIT, &reg_size_tok)) {
-                    fprintf(stderr, "Parse error: expected register size after let int : \n");
+                Token *reg_size_tok = take_token(lexer);
+                if (reg_size_tok == NULL || reg_size_tok->type != TOK_INT_LIT) {
+                    ErrSite site = errsite_from_token_at(
+                        reg_size_tok ? reg_size_tok->line : 0,
+                        reg_size_tok ? reg_size_tok->column : 0,
+                        lexer->source_map, lexer->source_filename);
                     free_token(reg_size_tok);
-                    return false;
+                    die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                        "expected minimum order (e.g. 'let int : 8 x := 0') after ':'");
                 }
                 statement->decl.int_ord = reg_size_tok->int_val;
                 free_token(reg_size_tok);
@@ -774,7 +834,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Expr *value = malloc(sizeof(Expr));
             if (value == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_expr(lexer, value)) {
                 free(name);
@@ -837,7 +897,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
             if (peek_token(lexer)->type != TOK_SEMICOLON) {
                 e = malloc(sizeof(Expr));
                 if (e == NULL) {
-                    die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                    die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
                 }
                 if (!parse_expr(lexer, e)) {
                     free(e);
@@ -864,7 +924,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Expr *e = malloc(sizeof(Expr));
             if (e == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_expr(lexer, e)) {
                 free(e);
@@ -890,7 +950,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Expr *cond = malloc(sizeof(Expr));
             if (cond == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_expr(lexer, cond)) {
                 free(cond);
@@ -899,7 +959,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Statement *then_body = malloc(sizeof(Statement));
             if (then_body == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_block(lexer, then_body)) {
                 free(cond);
@@ -912,7 +972,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
                 free_token(take_token(lexer)); // consume the ELSE token
                 else_body = malloc(sizeof(Statement));
                 if (else_body == NULL) {
-                    die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                    die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
                 }
                 if (!parse_block(lexer, else_body)) {
                     free(cond);
@@ -936,7 +996,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Expr *cond = malloc(sizeof(Expr));
             if (cond == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_expr(lexer, cond)) {
                 free(cond);
@@ -945,7 +1005,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
             Statement *body = malloc(sizeof(Statement));
             if (body == NULL) {
-                die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
             }
             if (!parse_block(lexer, body)) {
                 free(cond);
@@ -1002,7 +1062,7 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
 
                 Expr *value = malloc(sizeof(Expr));
                 if (value == NULL) {
-                    die(EXIT_FAILURE, "parser", lexer->current_line, "Malloc failed");
+                    die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
                 }
                 if (!parse_expr(lexer, value)) {
                     free(name);
@@ -1032,15 +1092,25 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
                 return true;
             }
 
-            fprintf(stderr, "Parse error: expected ':=' or ':' after identifier '%s'\n", name);
-            free(name);
-            return false;
+            {
+                Token *bad = peek_token(lexer);
+                ErrSite site = errsite_from_token_at(
+                    bad ? bad->line : 0, bad ? bad->column : 0,
+                    lexer->source_map, lexer->source_filename);
+                free(name);
+                die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                    "expected ':=' or ':' after identifier, got %s",
+                    token_type_name(bad ? bad->type : TOK_EOF));
+            }
         }
 
         default: {
-            fprintf(stderr, "Parse error at line %u, column %u: unexpected token at start of statement\n",
-                    t->line, t->column);
-            return false;
+            ErrSite site = errsite_from_token_at(
+                t->line, t->column, lexer->source_map, lexer->source_filename);
+            const char *name = token_type_name(t->type);
+            free_token(t);
+            die(EXIT_CODE_PARSE, STAGE_PARSE, site,
+                "unexpected %s at start of statement", name);
         }
     }
 }
@@ -1055,47 +1125,81 @@ void parse_program(const char *input_file_name, ProgramAST *ast) {
 
     if (input_length < suffix_len ||
         strcmp(input_file_name + input_length - suffix_len, suffix) != 0) {
-        die(EXIT_FAILURE, "parser", 0,
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE,
             "parse_program: expected filename ending in '.cbyte', got '%s'",
             input_file_name);
     }
 
     const size_t base_length = input_length - suffix_len;
     char *preprocessed_out_filename = malloc(base_length + sizeof("-pp.cbyte"));
-    if (preprocessed_out_filename == NULL) {
-        die(EXIT_FAILURE, "parser", 0, "Malloc failed");
+    char *lines_filename             = malloc(base_length + sizeof("-pp.lines"));
+    if (preprocessed_out_filename == NULL || lines_filename == NULL) {
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Malloc failed");
     }
 
     memcpy(preprocessed_out_filename, input_file_name, base_length);
     strcpy(preprocessed_out_filename + base_length, "-pp.cbyte");
+    memcpy(lines_filename, input_file_name, base_length);
+    strcpy(lines_filename + base_length, "-pp.lines");
 
     FILE *input = fopen(preprocessed_out_filename, "r");
-
     if (input == NULL) {
         free(preprocessed_out_filename);
-        die(EXIT_FAILURE, "parser", 0, "Failed to open file %s", input_file_name);
+        free(lines_filename);
+        die(EXIT_FAILURE, STAGE_PARSE, NO_SITE, "Failed to open file %s", input_file_name);
     }
+
+    // Read the .lines sidecar to build a SourceMap so all errors can report
+    // original-file line numbers even after macro expansion strips #define lines.
+    SourceMap source_map = {0};
+    FILE *lines_file = fopen(lines_filename, "r");
+    if (lines_file != NULL) {
+        // Count lines first so we can allocate exactly the right amount.
+        int pp_line_count = 0;
+        {
+            int ch;
+            while ((ch = fgetc(lines_file)) != EOF) {
+                if (ch == '\n') pp_line_count++;
+            }
+            rewind(lines_file);
+        }
+        // Allocate 1-indexed array: index 0 unused, indices 1..pp_line_count used.
+        int *orig_lines = calloc((size_t)(pp_line_count + 1), sizeof(int));
+        if (orig_lines != NULL) {
+            for (int i = 1; i <= pp_line_count; i++) {
+                if (fscanf(lines_file, "%d\n", &orig_lines[i]) != 1) break;
+            }
+            source_map.orig_lines = orig_lines;
+            source_map.count      = pp_line_count;
+        }
+        fclose(lines_file);
+    }
+    free(lines_filename);
 
     Lexer lexer;
     init_lexer(&lexer, input);
+    lexer.source_filename = input_file_name;
+    lexer.source_map      = &source_map;
+    ast->source_filename  = input_file_name;
 
     while (peek_token(&lexer)->type != TOK_EOF) {
         Statement *statement = malloc(sizeof(Statement));
         if (statement == NULL) {
-            die(EXIT_FAILURE, "parser", lexer.current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer.current_line, lexer.source_filename), "Malloc failed");
         }
 
         if (parse_statement(&lexer, statement)) {
             append_statement(ast, statement);
         } else if (peek_token(&lexer)->type != TOK_EOF) {
             free_statement(statement);
-            die(EXIT_FAILURE, "parser", lexer.current_line, "Parsing failed for statement");
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer.current_line, lexer.source_filename), "parse error");
         } else {
             free_statement(statement);
         }
     }
 
     free(preprocessed_out_filename);
+    free((int *)source_map.orig_lines);
     // Final EOF clean-up
     free_token(take_token(&lexer));
 

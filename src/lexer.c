@@ -80,7 +80,7 @@ Token *next_token(Lexer *lexer) {
     Token *token = malloc(sizeof(Token));
 
     if (token == NULL) {
-        die(EXIT_FAILURE, "Tokenization", lexer->current_line, "Malloc failed");
+        die(EXIT_FAILURE, STAGE_LEXER, errsite_from_lexer(lexer->source_map, lexer->source_filename, lexer->current_line, lexer->current_column), "Malloc failed");
     }
 
     char token_text[MAX_TOKEN_ARR_LENGTH] = {0}; // By 0 initialisation we won't forget null terminators
@@ -232,7 +232,7 @@ Token *next_token(Lexer *lexer) {
 
         if (token_text[MAX_TOKEN_LENGTH] != '\0') {
             // The token is too long
-            die(EXIT_FAILURE, "Tokenization", lexer->current_line, "Overly long token at column %d: %s\n", token->column, token_text);
+            die(EXIT_FAILURE, STAGE_LEXER, errsite_from_lexer(lexer->source_map, lexer->source_filename, lexer->current_line, lexer->current_column), "Overly long token at column %d: %s\n", token->column, token_text);
         }
 
         // Check if the token is a keyword
@@ -325,7 +325,7 @@ Token *next_token(Lexer *lexer) {
             errno = 0;
             long v = strtol(token_text, &end, 10);
             if (errno != 0 || *end != '\0' || v < INT_MIN || v > INT_MAX) {
-                die(EXIT_FAILURE, "Tokenization", token->line,
+                die(EXIT_FAILURE, STAGE_LEXER, errsite_from_token_at(token->line, token->column, lexer->source_map, lexer->source_filename),
                     "Integer literal out of range at column %d: %s\n",
                     token->column, token_text);
             }
@@ -356,11 +356,11 @@ Token *next_token(Lexer *lexer) {
             next_char = fgetc(lexer->input);
 
             if (next_char == EOF) {
-                die(EXIT_FAILURE,  "tokenizer", token->line, "Unclosed alg literal at column %d: %s\n", token->column, token_text);
+                die(EXIT_FAILURE, STAGE_LEXER, errsite_from_token_at(token->line, token->column, lexer->source_map, lexer->source_filename), "Unclosed alg literal at column %d: %s\n", token->column, token_text);
             }
 
             if (next_char == '\n' || next_char == '\f' || next_char == '\v') {
-                die(EXIT_FAILURE,  "tokenizer", token->line, "Unclosed alg literal at column %d: %s\n", token->column, token_text);
+                die(EXIT_FAILURE, STAGE_LEXER, errsite_from_token_at(token->line, token->column, lexer->source_map, lexer->source_filename), "Unclosed alg literal at column %d: %s\n", token->column, token_text);
             }
 
             if (next_char == '\r') {
@@ -379,11 +379,11 @@ Token *next_token(Lexer *lexer) {
 
         if (token_text[MAX_TOKEN_LENGTH] != '\0') {
             // The token is too long
-            die(EXIT_FAILURE, "tokenizer", lexer->current_line, "Overly long alg literal at column %d: %s\n", token->column, token_text);
+            die(EXIT_FAILURE, STAGE_LEXER, errsite_from_lexer(lexer->source_map, lexer->source_filename, lexer->current_line, lexer->current_column), "Overly long alg literal at column %d: %s\n", token->column, token_text);
         }
 
         if (token_text[token_length - 1] != '"') {
-            die(EXIT_FAILURE, "tokenizer", token->line, "Unclosed alg literal at column %d: %s\n", token->column, token_text);
+            die(EXIT_FAILURE, STAGE_LEXER, errsite_from_token_at(token->line, token->column, lexer->source_map, lexer->source_filename), "Unclosed alg literal at column %d: %s\n", token->column, token_text);
         }
 
         // Strip the surrounding quotes before handing the text to alg_parse
@@ -399,11 +399,11 @@ Token *next_token(Lexer *lexer) {
         token->type = TOK_STRING_LIT;
         token->string_val = lexer_strdup(token_text + 1);
         if (token->string_val == NULL) {
-            die(EXIT_FAILURE, "Tokenization", lexer->current_line, "Malloc failed");
+            die(EXIT_FAILURE, STAGE_LEXER, errsite_from_lexer(lexer->source_map, lexer->source_filename, lexer->current_line, lexer->current_column), "Malloc failed");
         }
         return token;
     }
 
     // Otherwise we have a malformed token
-    die(EXIT_FAILURE, "tokenizer", token->line, "Malformed token at column %d: %s\n", token->column, token_text);
+    die(EXIT_FAILURE, STAGE_LEXER, errsite_from_token_at(token->line, token->column, lexer->source_map, lexer->source_filename), "Malformed token at column %d: %s\n", token->column, token_text);
 }
