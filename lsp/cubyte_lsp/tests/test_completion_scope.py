@@ -1,10 +1,11 @@
-"""Smoke test for scope-aware completion.
+"""Smoke tests for scope-aware completion.
 
-Verifies that :func:`completion` does not suggest a ``let`` declaration
-whose text appears at or after the cursor (cubyte's scoping rule is
-purely textual, so the name is not yet in scope there). Labels, by
-contrast, are valid ``goto`` targets from anywhere in the program and
-should always be offered.
+Verifies:
+- ``let`` declarations are not offered at or before the cursor (textual
+  scoping rule).
+- ``let`` declarations inside ``{...}`` blocks are not offered outside
+  those blocks (block scoping rule).
+- Labels are always offered regardless of cursor position.
 
 Run with ``python -m cubyte_lsp.tests.test_completion_scope`` from the
 ``lsp/`` dir.
@@ -107,10 +108,51 @@ def test_alg_let_also_filtered() -> None:
     assert "b" not in labels
 
 
+def test_block_scoped_variable_not_offered_outside_block() -> None:
+    """A variable declared inside ``{…}`` must not appear outside it."""
+    text = (
+        "let int : 4 outer := 0;\n"   # line 0 — top-level
+        "if not (outer = 0) {\n"       # line 1
+        "    let int : 4 inner := 1;\n"# line 2 — block-scoped
+        "    outer := inner;\n"        # line 3 — inner in scope here
+        "}\n"                          # line 4 — block closed
+        "outer := 2;\n"                # line 5 — inner must NOT be in scope
+    )
+    # Inside the block (line 3): both outer and inner are in scope.
+    labels = _labels_at(text, _line_offset(text, 3))
+    assert "outer" in labels, "outer should be visible inside the block"
+    assert "inner" in labels, "inner should be visible inside its own block"
+
+    # Outside the block (line 5): only outer remains in scope.
+    labels = _labels_at(text, _line_offset(text, 5))
+    assert "outer" in labels, "outer should be visible after the block"
+    assert "inner" not in labels, "inner must not leak out of its block"
+
+
+def test_block_scoped_variable_not_offered_before_declaration() -> None:
+    """Textual rule still applies even for block-scoped variables."""
+    text = (
+        "if not (1 = 0) {\n"           # line 0
+        "    let int : 4 x := 5;\n"    # line 1 — declared here
+        "    x := x + 1;\n"            # line 2
+        "}\n"                           # line 3
+    )
+    # Cursor at the very start of the block body, before the `let`.
+    inside_before_decl = _line_offset(text, 1)
+    labels = _labels_at(text, inside_before_decl)
+    assert "x" not in labels, "x must not appear before its own declaration"
+
+    # Cursor on line 2, after the declaration.
+    labels = _labels_at(text, _line_offset(text, 2))
+    assert "x" in labels, "x should be visible after its declaration inside the block"
+
+
 if __name__ == "__main__":
     test_offset_zero_offers_no_variables_below()
     test_offset_after_let_offers_variable()
     test_labels_always_offered()
     test_no_offset_offers_everything()
     test_alg_let_also_filtered()
+    test_block_scoped_variable_not_offered_outside_block()
+    test_block_scoped_variable_not_offered_before_declaration()
     print("ok")

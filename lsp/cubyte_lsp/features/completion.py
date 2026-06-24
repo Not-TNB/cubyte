@@ -1,19 +1,26 @@
 """Completion provider.
 
-Returns three kinds of items:
+Returns four kinds of items:
 
 * Keywords, with a snippet form for the common shapes
   (``let int : 4 $1 := $2;`` etc.).
 * Type names (``int``, ``alg``).
 * Piece labels (the 20 corner/edge names).
-* Identifiers visible in the current document — declared variables and
-  labels. We use a regex pass for now; a proper parser would let us
-  scope these to the right block. cubyte's scoping rule is purely
-  textual (a name is in scope only after the line that declares it), so
-  we filter the document-symbols pass by the cursor's character offset
-  and drop any declaration that comes at or after the cursor.
+* Identifiers visible at the cursor: declared variables scoped to the
+  enclosing block, labels (valid goto targets everywhere), and the
+  built-in ``_io`` I/O register which is always in scope.
 
-The order is: keywords, types, then user identifiers, then pieces. The
+Scoping rules:
+- ``_io`` is always in scope (it is a reserved register, never declared).
+- Labels are always in scope (the typechecker pre-collects them for goto).
+- ``let`` variables obey two rules simultaneously:
+    1. Textual order: a name is not in scope on or before its own
+       declaration line.
+    2. Block scope: a variable declared inside ``{…}`` is only in scope
+       within that block. Variables at the top level have no enclosing
+       block and are in scope everywhere after their declaration.
+
+The order is: keywords, types, ``_io``, user identifiers, pieces. The
 detail field shows the kind so editors can render it in a column.
 """
 
@@ -32,6 +39,12 @@ from ..protocol.types import (
     COMPLETION_VARIABLE,
     CompletionItem,
     Position,
+)
+
+_IO_DOC = (
+    "Reserved: refers to the I/O register (R0). `input` and `output` "
+    "operate on it. It behaves like a regular `int` but cannot be "
+    "redeclared. Order is 9."
 )
 
 
@@ -75,10 +88,14 @@ async def completion(params: dict, doc) -> list[dict]:
             documentation=piece.doc,
         ))
 
-    # Document-level symbols are scoped to the cursor: cubyte's scoping
-    # rule is purely textual, so a declaration at or after the cursor
-    # is not yet in scope and must not be suggested. If the client omits
-    # the position we fall back to offering everything.
+    # _io is always in scope — it is a reserved register, never declared.
+    items.append(CompletionItem(
+        label="_io",
+        kind=COMPLETION_VARIABLE,
+        detail="I/O register",
+        documentation=_IO_DOC,
+    ))
+
     cursor_offset = _cursor_offset(params, doc.text)
     items.extend(_document_symbols(doc.text, cursor_offset))
 
@@ -127,24 +144,69 @@ def _offset_for_line_col(text: str, position: Position) -> int:
     return len(text)
 
 
+def _build_scope_ranges(text: str) -> list[tuple[int, int]]:
+    """Return (open, close) offset pairs for every ``{…}`` block.
+
+    Braces inside string literals are ignored so algorithm literals like
+    ``"R {U}"`` (hypothetical) do not create phantom scopes.
+    """
+    ranges: list[tuple[int, int]] = []
+    stack: list[int] = []
+    in_string = False
+    for i, c in enumerate(text):
+        if c == '"':
+            in_string = not in_string
+        elif not in_string:
+            if c == '{':
+                stack.append(i)
+            elif c == '}' and stack:
+                ranges.append((stack.pop(), i))
+    return ranges
+
+
+def _innermost_scope(pos: int, scope_ranges: list[tuple[int, int]]) -> tuple[int, int] | None:
+    """Return the innermost scope range whose open/close offsets surround *pos*.
+
+    "Innermost" means the one whose opening brace is closest (and before)
+    *pos*. Returns ``None`` when *pos* is at the top level.
+    """
+    result: tuple[int, int] | None = None
+    for s, e in scope_ranges:
+        if s < pos < e:
+            if result is None or s > result[0]:
+                result = (s, e)
+    return result
+
+
 def _document_symbols(text: str, cursor_offset: Optional[int] = None) -> Iterable[CompletionItem]:
     seen: set[str] = set()
+    scope_ranges = _build_scope_ranges(text)
+
     # Variable declarations: `let (int|alg) [ : <order> ] name := ...`.
-    # cubyte scoping is textual — a `let` is in scope only from the line
-    # *after* its declaration. So when the cursor is on or before the
-    # declaration, the name must not be suggested (using it would be a
-    # typecheck error).
+    # Two scoping rules apply simultaneously:
+    #   1. Textual order — a name is not in scope at or before its own
+    #      declaration offset.
+    #   2. Block scope — a variable declared inside ``{…}`` is only
+    #      visible within that block. Top-level variables (no enclosing
+    #      brace) are visible everywhere after their declaration.
     for m in re.finditer(r"let\s+(int|alg)\s*(?::\s*\d+\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*:=", text):
         if cursor_offset is not None and m.start() >= cursor_offset:
             continue
+
+        decl_scope = _innermost_scope(m.start(), scope_ranges)
+        if cursor_offset is not None and decl_scope is not None:
+            # Variable is block-scoped; cursor must lie inside that block.
+            s, e = decl_scope
+            if not (s < cursor_offset < e):
+                continue
+
         name = m.group(2)
         if name in seen:
             continue
         seen.add(name)
-        kind = "variable"
-        if m.group(1) == "alg":
-            kind = "algorithm"
+        kind = "algorithm" if m.group(1) == "alg" else "variable"
         yield CompletionItem(label=name, kind=COMPLETION_VARIABLE, detail=kind)
+
     # Labels: `name:` at the start of a line (no `=` after). Labels in
     # cubyte are valid ``goto`` targets from anywhere in the program
     # (the typechecker collects all of them in a pre-pass), so we
