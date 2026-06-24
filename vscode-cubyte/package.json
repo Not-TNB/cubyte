@@ -1,5 +1,10 @@
 {
   "name": "vscode-cubyte",
+  "repository": {
+    "url": "https://github.com/Not-TNB/cubyte",
+    "type": "git",
+    "directory": "vscode-cubyte"
+  },
   "version": "0.0.1",
   "engines": { "vscode": "^1.82.0" },
   "activationEvents": ["onLanguage:cubyte"],
@@ -8,7 +13,11 @@
     "languages": [{
       "id": "cubyte",
       "extensions": [".cbyte"],
-      "configuration": "./language-configuration.json"
+      "configuration": "./language-configuration.json",
+      "icon": {
+        "light": "./cubyte-icon.png",
+        "dark": "./cubyte-icon.png"
+      }
     }],
     "grammars": [{
       "language": "cubyte",
