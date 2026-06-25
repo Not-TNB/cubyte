@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../include/codegen.h"
 #include "../include/cube.h"
@@ -200,6 +201,66 @@ static void dump_preprocessor_output(const char *input_file_name) {
     free(preprocessed_path);
 }
 
+// Build <input>-pp.cbyte / <input>-pp.lines paths in freshly malloc'd buffers.
+// `out_pp_cbyte` and `out_pp_lines` receive the two paths; caller frees both.
+// Dies with EXIT_CODE_INTERNAL if the input doesn't end in ".cbyte".
+static void build_preprocessor_paths(const char *input_file_name,
+                                     char **out_pp_cbyte,
+                                     char **out_pp_lines) {
+    static const char suffix[] = ".cbyte";
+    const size_t suffix_len = sizeof(suffix) - 1;
+    const size_t input_length = strlen(input_file_name);
+
+    if (input_length < suffix_len ||
+        strcmp(input_file_name + input_length - suffix_len, suffix) != 0) {
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
+            "expected filename ending in '.cbyte', got '%s'",
+            input_file_name);
+    }
+
+    const size_t base_length = input_length - suffix_len;
+    char *pp_cbyte = malloc(base_length + sizeof("-pp.cbyte"));
+    char *pp_lines = malloc(base_length + sizeof("-pp.lines"));
+    if (pp_cbyte == NULL || pp_lines == NULL) {
+        free(pp_cbyte);
+        free(pp_lines);
+        die(EXIT_CODE_INTERNAL, STAGE_INTERNAL, NO_SITE,
+            "Malloc failed while building preprocessor output paths");
+    }
+
+    memcpy(pp_cbyte, input_file_name, base_length);
+    strcpy(pp_cbyte + base_length, "-pp.cbyte");
+    memcpy(pp_lines, input_file_name, base_length);
+    strcpy(pp_lines + base_length, "-pp.lines");
+
+    *out_pp_cbyte = pp_cbyte;
+    *out_pp_lines = pp_lines;
+}
+
+// Remove the preprocessor's two sidecar files. Called once parse_program has
+// read both into memory; the on-disk copies are then dead weight. Failures
+// (permissions, file already deleted, etc.) are reported on stderr but do not
+// abort the compilation -- the user's .s is already on disk.
+static void cleanup_preprocessor_outputs(const char *input_file_name) {
+    char *pp_cbyte = NULL;
+    char *pp_lines = NULL;
+    build_preprocessor_paths(input_file_name, &pp_cbyte, &pp_lines);
+
+    if (unlink(pp_cbyte) != 0 && errno != ENOENT) {
+        fprintf(stderr,
+                "warning: failed to remove temporary preprocessor output '%s': %s\n",
+                pp_cbyte, strerror(errno));
+    }
+    if (unlink(pp_lines) != 0 && errno != ENOENT) {
+        fprintf(stderr,
+                "warning: failed to remove temporary preprocessor output '%s': %s\n",
+                pp_lines, strerror(errno));
+    }
+
+    free(pp_cbyte);
+    free(pp_lines);
+}
+
 static bool expr_uses_io_register(const Expr *expr) {
     if (expr == NULL) {
         return false;
@@ -316,6 +377,13 @@ int main(int argc, char **argv) {
     if (opts.dump_preprocessor) {
         dump_preprocessor_output(opts.input_file_name);
     }
+    /*
+     * Both preprocessor sidecars (<input>-pp.cbyte and <input>-pp.lines) have
+     * now been fully consumed: parse_program read the .cbyte through the
+     * lexer and copied the .lines into a heap-backed source map. Remove the
+     * on-disk copies so they don't clutter the user's working directory.
+     */
+    cleanup_preprocessor_outputs(opts.input_file_name);
     if (opts.dump_ast) {
         dump_program(parsed_program);
     }
