@@ -26,5 +26,6 @@ cubyte_lsp/protocol/__init__.py
 cubyte_lsp/protocol/jsonrpc.py
 cubyte_lsp/protocol/types.py
 cubyte_lsp/tests/__init__.py
+cubyte_lsp/tests/test_analyzer.py
 cubyte_lsp/tests/test_completion_scope.py
 cubyte_lsp/tests/test_jsonrpc.py

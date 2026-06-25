@@ -5,8 +5,13 @@ high-level language whose runtime is a Rubik's cube. The server speaks LSP
 3.17 over stdin/stdout and provides:
 
 - **Diagnostics** — the server shells out to the `cubyte` compiler and
-  converts its `[stage] line N: message` errors into LSP diagnostics
-  published on `textDocument/publishDiagnostics`.
+  converts its `file:line:col: error[stage]: message` stderr output
+  into LSP diagnostics published on `textDocument/publishDiagnostics`.
+  `lexer` and `parse` errors squiggle the offending token;
+  `typecheck` errors squiggle the identifier named in the message
+  (or the whole line if none is named); `regalloc` errors appear in
+  the Problems panel and gutter but the compiler doesn't report a
+  source location for them.
 - **Hover** — shows the type, required register order, and (when available)
   the physical register the variable is bound to, plus a short description
   of built-in pieces, keywords, and the I/O register.

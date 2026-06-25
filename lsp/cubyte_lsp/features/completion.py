@@ -44,13 +44,13 @@ from ..protocol.types import (
 _IO_DOC = (
     "Reserved: refers to the I/O register (R0). `input` and `output` "
     "operate on it. It behaves like a regular `int` but cannot be "
-    "redeclared. Order is 9."
+    "redeclared."
 )
 
 
-# Snippets for keywords. ``$1``, ``$2`` are tab stops the editor fills in.
+# Snippets for keywords. ``$1``, ``$2``, ``$3`` are tab stops the editor fills in.
 _SNIPPETS: dict[str, str] = {
-    "let":   "let int : 4 $1 := $2;",
+    "let":   "let int : $1 $2 := $3;",
     "if":    "if not ($1 = 0) {\n\t$2\n}",
     "while": "while not ($1 = 0) {\n\t$2\n}",
     "goto":  "goto $1;",
