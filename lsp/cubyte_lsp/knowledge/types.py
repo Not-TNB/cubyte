@@ -40,6 +40,6 @@ def doc_for(name: str) -> str | None:
         return (
             "Reserved: refers to the I/O register (R0). `input` and `output` "
             "operate on it. It behaves like a regular `int` but cannot be "
-            "redeclared. Order is 9."
+            "redeclared."
         )
     return None
