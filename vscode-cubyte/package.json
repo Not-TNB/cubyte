@@ -5,7 +5,7 @@
     "type": "git",
     "directory": "vscode-cubyte"
   },
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": { "vscode": "^1.82.0" },
   "activationEvents": ["onLanguage:cubyte"],
   "main": "./extension.js",
@@ -15,8 +15,8 @@
       "extensions": [".cbyte"],
       "configuration": "./language-configuration.json",
       "icon": {
-        "light": "./cubyte-icon.png",
-        "dark": "./cubyte-icon.png"
+        "light": "./CUBYTE_LOGO_LIGHT_MODE.png",
+        "dark": "./CUBYTE_LOGO_DARK_MODE.png"
       }
     }],
     "grammars": [{
