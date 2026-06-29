@@ -89,6 +89,8 @@ apply setup;
 
 `alg` variables are compile-time string constants. `apply` emits the algorithm as raw cube moves (cancellations and opposite-face commutations are simplified before emission).
 
+> **Warning — undefined behaviour:** `apply` bypasses the register abstraction and writes directly to the cube state. If the algorithm moves any piece that belongs to an allocated register's cycle set, the value stored in that register becomes undefined. The zeroing loop for the affected register may then run for a very large number of iterations or fail to terminate. This is analogous to undefined behaviour in C — the compiler will not warn you.
+
 ### I/O
 
 ```cbyte
@@ -106,6 +108,8 @@ Conditions can test equality to a constant, equality between two variables, or w
 ```cbyte
 if not (x = 0) {
     x := x - 1;
+} elif x = 3 {
+    x := 1;
 } else {
     x := 3;
 }
@@ -118,6 +122,8 @@ if solved [UF, DF, FL, FR, BL] {
     output "score";
 }
 ```
+
+`elif` chains are supported and desugar to nested `if`/`else` — there is no limit on the number of `elif` branches.
 
 Labels and `goto` are also supported:
 
@@ -148,6 +154,7 @@ All examples live in `examples/`. Each `.cbyte` file has a corresponding pre-com
 | `loopish.cbyte` | Count via `goto` until a set of edges is solved |
 | `prompt_echo.cbyte` | Loop with arithmetic, a conditional, then I/O |
 | `fib.cbyte` | Compute Fibonacci numbers modulo the register order |
+| `grade.cbyte` | Classify an input score into four bands using an `elif` chain |
 
 ---
 
