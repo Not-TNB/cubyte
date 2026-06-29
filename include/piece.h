@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_EXTENSION_SRC_PIECE_H
-#define ARMV8_37_EXTENSION_SRC_PIECE_H
+#ifndef PIECE_H
+#define PIECE_H
 
 typedef enum {
     PC_UFL,
@@ -40,4 +40,4 @@ extern const char *const piece_label_strings[PC_COUNT];
 int piece_from_string(const char *s);
 const char *piece_to_string(int p);
 
-#endif //ARMV8_37_EXTENSION_SRC_PIECE_H
+#endif /* PIECE_H */

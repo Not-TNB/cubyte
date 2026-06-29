@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_LEXER_H
-#define ARMV8_37_LEXER_H
+#ifndef LEXER_H
+#define LEXER_H
 
 #include <stdio.h>
 
@@ -81,4 +81,4 @@ void free_lexer(Lexer *lexer);
 // Produces the next token
 Token *next_token(Lexer *lexer);
 
-#endif //ARMV8_37_LEXER_H
+#endif /* LEXER_H */

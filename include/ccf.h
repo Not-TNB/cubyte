@@ -1,5 +1,5 @@
-#ifndef CUBIT_CCF_H
-#define CUBIT_CCF_H
+#ifndef CCF_H
+#define CCF_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -183,4 +183,4 @@ const CCFArchitecture *ccf_select(const CCFResult *result,
                                   const int *required_orders, int count,
                                   int bias_lo, int bias_hi);
 
-#endif /* CUBIT_CCF_H */
+#endif /* CCF_H */

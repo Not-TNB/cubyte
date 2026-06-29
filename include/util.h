@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_EXTENSION_SRC_UTIL_H
-#define ARMV8_37_EXTENSION_SRC_UTIL_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <stdnoreturn.h>
 
@@ -96,4 +96,4 @@ ErrSite errsite_from_lexer(const SourceMap *source_map,
 /* Standard dynamic-array capacity doubling: initial size 8, then 2×. */
 static inline int next_cap(int cap) { return cap ? cap * 2 : 8; }
 
-#endif // ARMV8_37_EXTENSION_SRC_UTIL_H
+#endif /* UTIL_H */

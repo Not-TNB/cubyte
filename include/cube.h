@@ -1,5 +1,5 @@
-#ifndef CUBIT_CUBE_H
-#define CUBIT_CUBE_H
+#ifndef CUBE_H
+#define CUBE_H
 
 /* -----------------------------------------------------------------------------
  * FACELET NUMBERING (48 non-centre facelets, 8 per face)
@@ -223,4 +223,4 @@ extern PieceLabel facelet_to_piece[FACELET_COUNT]; /* written by cube_init(); tr
 void cube_print_state(const CubeState *s);
 void cycleset_print(CycleSet cs);
 
-#endif /* CUBIT_CUBE_H */
+#endif /* CUBE_H */

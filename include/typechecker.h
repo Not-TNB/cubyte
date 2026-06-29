@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_EXTENSION_TYPECHECKER_H
-#define ARMV8_37_EXTENSION_TYPECHECKER_H
+#ifndef TYPECHECKER_H
+#define TYPECHECKER_H
 
 #include <stdbool.h>
 

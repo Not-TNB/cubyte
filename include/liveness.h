@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_EXTENSION_LIVENESS_H
-#define ARMV8_37_EXTENSION_LIVENESS_H
+#ifndef LIVENESS_H
+#define LIVENESS_H
 
 #include <stdio.h>
 

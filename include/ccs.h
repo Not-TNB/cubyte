@@ -1,5 +1,5 @@
-#ifndef CUBIT_CCS_H
-#define CUBIT_CCS_H
+#ifndef CCS_H
+#define CCS_H
 
 /*
  * Cycle Combination Solver (CCS)
@@ -159,4 +159,4 @@ int ccs_enumerate_assignments(const CCFArchitecture *arch,
  */
 bool ccs_find_alg(const CCSRegister *reg, Alg *out);
 
-#endif /* CUBIT_CCS_H */
+#endif /* CCS_H */

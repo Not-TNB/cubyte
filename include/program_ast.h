@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_AST_H
-#define ARMV8_37_AST_H
+#ifndef PROGRAM_AST_H
+#define PROGRAM_AST_H
 
 #include "alg.h"
 #include "piece.h"
@@ -177,4 +177,4 @@ void parse_program(const char *input_file_name, ProgramAST *ast);
 // Free the memory for a program. Safe to call with NULL.
 void free_program_ast(ProgramAST *ast);
 
-#endif //ARMV8_37_AST_H
+#endif /* PROGRAM_AST_H */

@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_REGALLOC_H
-#define ARMV8_37_REGALLOC_H
+#ifndef REGALLOC_H
+#define REGALLOC_H
 
 #include "cube.h"
 #include "interference.h"
@@ -56,4 +56,4 @@ int *regalloc_run(RegTable *table, const InterferenceGraph *ig);
 void regalloc_dump(const RegTable *table, const InterferenceGraph *ig,
                    const int *coloring, FILE *out);
 
-#endif /* ARMV8_37_REGALLOC_H */
+#endif /* REGALLOC_H */

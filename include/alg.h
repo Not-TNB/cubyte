@@ -1,5 +1,5 @@
-#ifndef CUBIT_ALG_H
-#define CUBIT_ALG_H
+#ifndef ALG_H
+#define ALG_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -22,4 +22,4 @@ void  alg_concat(Alg *dst, const Alg *src);
 void  alg_power_realise(const Alg *a, int m, int K, Alg *out); /* Stage 1 of D5 */
 void  alg_simplify(Alg *a);                     /* Stage 2 of D5 */
 
-#endif /* CUBIT_ALG_H */
+#endif /* ALG_H */

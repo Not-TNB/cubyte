@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_EXTENSION_INTERFERENCE_H
-#define ARMV8_37_EXTENSION_INTERFERENCE_H
+#ifndef INTERFERENCE_H
+#define INTERFERENCE_H
 
 #include <stdbool.h>
 #include <stdint.h>

@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_PREPROCESSOR_H
-#define ARMV8_37_PREPROCESSOR_H
+#ifndef PREPROCESSOR_H
+#define PREPROCESSOR_H
 
 #include "../include/lexer.h"
 
@@ -9,4 +9,4 @@
 // where {base} is `filename` with a trailing ".cbyte" extension stripped.
 void preprocess(const char *filename);
 
-#endif //ARMV8_37_PREPROCESSOR_H
+#endif /* PREPROCESSOR_H */

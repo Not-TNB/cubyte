@@ -1,5 +1,5 @@
-#ifndef ARMV8_37_KOCIEMBA_H
-#define ARMV8_37_KOCIEMBA_H
+#ifndef KOCIEMBA_H
+#define KOCIEMBA_H
 
 #include <stdbool.h>
 #include "cube.h"
@@ -27,4 +27,4 @@ char *kociemba_shorten(const char *raw_alg);
  */
 bool kociemba_solve_state(const CubeState *target, Alg *out);
 
-#endif /* ARMV8_37_KOCIEMBA_H */
+#endif /* KOCIEMBA_H */
