@@ -279,6 +279,7 @@ static const char *token_type_name(TokenType type) {
         case TOK_INT:          return "'int'";
         case TOK_ALG:          return "'alg'";
         case TOK_IF:           return "'if'";
+        case TOK_ELIF:         return "'elif'";
         case TOK_ELSE:         return "'else'";
         case TOK_WHILE:        return "'while'";
         case TOK_GOTO:         return "'goto'";
@@ -771,6 +772,73 @@ static bool parse_block(Lexer *lexer, Statement *block) {
     return true;
 }
 
+// Parses the body of an if statement after the 'if'/'elif' keyword has been
+// consumed: condition, then-block, and an optional elif/else chain.
+// elif desugars into a synthesised STMT_BLOCK containing a nested STMT_IF.
+static bool parse_if_body(Lexer *lexer, Statement *statement) {
+    Expr *cond = malloc(sizeof(Expr));
+    if (cond == NULL)
+        die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+    if (!parse_expr(lexer, cond)) {
+        free(cond);
+        return false;
+    }
+
+    Statement *then_body = malloc(sizeof(Statement));
+    if (then_body == NULL)
+        die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+    if (!parse_block(lexer, then_body)) {
+        free(cond);
+        free(then_body);
+        return false;
+    }
+
+    Statement *else_body = NULL;
+    TokenType next = peek_token(lexer)->type;
+
+    if (next == TOK_ELIF) {
+        free_token(take_token(lexer)); // consume 'elif'
+
+        Statement *inner_if = malloc(sizeof(Statement));
+        if (inner_if == NULL)
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+        if (!parse_if_body(lexer, inner_if)) {
+            free(cond);
+            free(then_body);
+            free(inner_if);
+            return false;
+        }
+
+        else_body = malloc(sizeof(Statement));
+        if (else_body == NULL)
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+        else_body->kind = STMT_BLOCK;
+        else_body->block.block_stmts = malloc(sizeof(Statement *));
+        if (else_body->block.block_stmts == NULL)
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+        else_body->block.block_stmts[0] = inner_if;
+        else_body->block.block_count    = 1;
+        else_body->block.block_capacity = 1;
+    } else if (next == TOK_ELSE) {
+        free_token(take_token(lexer)); // consume 'else'
+        else_body = malloc(sizeof(Statement));
+        if (else_body == NULL)
+            die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
+        if (!parse_block(lexer, else_body)) {
+            free(cond);
+            free(then_body);
+            free(else_body);
+            return false;
+        }
+    }
+
+    statement->kind              = STMT_IF;
+    statement->if_stmt.if_cond   = cond;
+    statement->if_stmt.if_then   = then_body;
+    statement->if_stmt.if_else   = else_body;
+    return true;
+}
+
 // Parses a statement, given a lexer
 static bool parse_statement(Lexer *lexer, Statement *statement) {
     // Consume any empty statements
@@ -944,49 +1012,9 @@ static bool parse_statement(Lexer *lexer, Statement *statement) {
         }
 
         case TOK_IF: {
-            // if expr { stmts } [else { stmts }]
             take_token(lexer);
             free_token(t);
-
-            Expr *cond = malloc(sizeof(Expr));
-            if (cond == NULL) {
-                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
-            }
-            if (!parse_expr(lexer, cond)) {
-                free(cond);
-                return false;
-            }
-
-            Statement *then_body = malloc(sizeof(Statement));
-            if (then_body == NULL) {
-                die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
-            }
-            if (!parse_block(lexer, then_body)) {
-                free(cond);
-                free(then_body);
-                return false;
-            }
-
-            Statement *else_body = NULL;
-            if (peek_token(lexer)->type == TOK_ELSE) {
-                free_token(take_token(lexer)); // consume the ELSE token
-                else_body = malloc(sizeof(Statement));
-                if (else_body == NULL) {
-                    die(EXIT_FAILURE, STAGE_PARSE, errsite_at_line(lexer->current_line, lexer->source_filename), "Malloc failed");
-                }
-                if (!parse_block(lexer, else_body)) {
-                    free(cond);
-                    free(then_body);
-                    free(else_body);
-                    return false;
-                }
-            }
-
-            statement->kind = STMT_IF;
-            statement->if_stmt.if_cond = cond;
-            statement->if_stmt.if_then = then_body;
-            statement->if_stmt.if_else = else_body;
-            return true;
+            return parse_if_body(lexer, statement);
         }
 
         case TOK_WHILE: {

@@ -256,6 +256,11 @@ Token *next_token(Lexer *lexer) {
             return token;
         }
 
+        if (strcmp(token_text, "elif") == 0) {
+            token->type = TOK_ELIF;
+            return token;
+        }
+
         if (strcmp(token_text, "else") == 0) {
             token->type = TOK_ELSE;
             return token;

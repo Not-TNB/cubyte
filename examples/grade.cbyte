@@ -1,0 +1,35 @@
+// Classify an input value (0-8) into one of four bands.
+//
+// Input  | Output
+// -------+-------
+//   0    |   0   (fail)
+//   1-2  |   1   (pass)
+//   3-5  |   2   (merit)
+//   6-8  |   3   (distinction)
+//
+// Demonstrates an elif chain as syntactic sugar for nested if/else.
+
+input "score (0-8): ";
+
+let int : 9 score  := 0;
+let int : 4 grade  := 0;
+
+score := _io;
+
+if score = 0 {
+    grade := 0;
+} elif score = 1 {
+    grade := 1;
+} elif score = 2 {
+    grade := 1;
+} elif score = 3 {
+    grade := 2;
+} elif score = 4 {
+    grade := 2;
+} elif score = 5 {
+    grade := 2;
+} else {
+    grade := 3;
+}
+
+output grade;

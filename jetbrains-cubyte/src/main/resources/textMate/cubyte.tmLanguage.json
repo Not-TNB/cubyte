@@ -84,7 +84,7 @@
       "patterns": [
         {
           "name": "keyword.control.cbyte",
-          "match": "\\b(?:if|else|while|goto|solved|not)\\b"
+          "match": "\\b(?:if|elif|else|while|goto|solved|not)\\b"
         },
         {
           "name": "keyword.other.cbyte",
