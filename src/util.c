@@ -1,6 +1,6 @@
-#include "../include/util.h"
+#include "util.h"
 
-#include "../include/piece.h"
+#include "cube/piece.h"
 
 #include <stdarg.h>
 #include <stdio.h>

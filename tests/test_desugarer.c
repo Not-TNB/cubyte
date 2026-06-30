@@ -1,6 +1,6 @@
-#include "../include/desugarer.h"
-#include "../include/program_ast.h"
-#include "../include/typechecker.h"
+#include "frontend/desugarer.h"
+#include "frontend/program_ast.h"
+#include "frontend/typechecker.h"
 
 #include <stdbool.h>
 #include <stdio.h>

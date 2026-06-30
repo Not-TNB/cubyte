@@ -13,11 +13,11 @@
  *   tests/ccs_explore 3               # find + dump a register set for order(s)
  *   tests/ccs_explore 2 3 4           # multi-register architecture
  */
-#include "../include/ccf.h"
-#include "../include/ccs.h"
-#include "../include/cube.h"
-#include "../include/alg.h"
-#include "../include/piece.h"
+#include "cube/ccf.h"
+#include "cube/ccs.h"
+#include "cube/cube3.h"
+#include "cube/alg.h"
+#include "cube/piece.h"
 
 #include <stdio.h>
 #include <stdlib.h>

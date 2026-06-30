@@ -1,0 +1,12 @@
+#ifndef PREPROCESSOR_H
+#define PREPROCESSOR_H
+
+#include "frontend/lexer.h"
+
+#define MAX_LINE_LENGTH (MAX_TOKEN_LENGTH * 1024)
+
+// Preprocesses the file then saves the result to {base}-pp.cbyte
+// where {base} is `filename` with a trailing ".cbyte" extension stripped.
+void preprocess(const char *filename);
+
+#endif /* PREPROCESSOR_H */

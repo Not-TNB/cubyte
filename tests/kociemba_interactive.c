@@ -1,7 +1,7 @@
-#include "../include/kociemba.h"
-#include "../include/alg.h"
-#include "../include/cube.h"
-#include "../include/util.h"
+#include "cube/kociemba.h"
+#include "cube/alg.h"
+#include "cube/cube3.h"
+#include "util.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,9 +1,9 @@
 /* Probe ccs_find_alg on hand-built registers, including orientation cycles. */
-#include "../include/ccf.h"
-#include "../include/ccs.h"
-#include "../include/cube.h"
-#include "../include/alg.h"
-#include "../include/piece.h"
+#include "cube/ccf.h"
+#include "cube/ccs.h"
+#include "cube/cube3.h"
+#include "cube/alg.h"
+#include "cube/piece.h"
 
 #include <stdio.h>
 #include <stdlib.h>

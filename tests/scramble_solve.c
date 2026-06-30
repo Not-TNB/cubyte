@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "../include/cube.h"
-#include "../include/kociemba.h"
-#include "../include/alg.h"
+#include "cube/cube3.h"
+#include "cube/kociemba.h"
+#include "cube/alg.h"
 
 static const char *MOVES[] = {
     "U","U2","U'","D","D2","D'","L","L2","L'","R","R2","R'","F","F2","F'","B","B2","B'"

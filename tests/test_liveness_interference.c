@@ -1,8 +1,8 @@
-#include "../include/interference.h"
-#include "../include/liveness.h"
-#include "../include/piece.h"
-#include "../include/program_ast.h"
-#include "../include/typechecker.h"
+#include "backend/interference.h"
+#include "backend/liveness.h"
+#include "cube/piece.h"
+#include "frontend/program_ast.h"
+#include "frontend/typechecker.h"
 
 #include <stdint.h>
 #include <stdio.h>

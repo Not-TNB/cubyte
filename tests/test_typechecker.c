@@ -1,6 +1,6 @@
-#include "../include/piece.h"
-#include "../include/program_ast.h"
-#include "../include/typechecker.h"
+#include "cube/piece.h"
+#include "frontend/program_ast.h"
+#include "frontend/typechecker.h"
 
 #include <stdio.h>
 #include <stdlib.h>

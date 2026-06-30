@@ -1,5 +1,5 @@
-#include "../include/alg.h"
-#include "../include/cube.h"
+#include "cube/alg.h"
+#include "cube/cube3.h"
 
 #include <stdio.h>
 #include <stdlib.h>

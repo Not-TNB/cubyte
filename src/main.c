@@ -5,16 +5,16 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../include/codegen.h"
-#include "../include/cube.h"
-#include "../include/desugarer.h"
-#include "../include/interference.h"
-#include "../include/liveness.h"
-#include "../include/print_ast.h"
-#include "../include/program_ast.h"
-#include "../include/regalloc.h"
-#include "../include/typechecker.h"
-#include "../include/util.h"
+#include "backend/codegen.h"
+#include "cube/cube3.h"
+#include "frontend/desugarer.h"
+#include "backend/interference.h"
+#include "backend/liveness.h"
+#include "frontend/print_ast.h"
+#include "frontend/program_ast.h"
+#include "backend/regalloc.h"
+#include "frontend/typechecker.h"
+#include "util.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define WEAK_STAGE __attribute__((weak))
