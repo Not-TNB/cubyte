@@ -68,4 +68,5 @@ extension/tests/test_typechecker
 extension_spec.latex
 extension_spec.md
 
-cubyte.dSYM/
+cubyte.dSYM/tests/test_cube4
+tests/test_cube4.dSYM/
