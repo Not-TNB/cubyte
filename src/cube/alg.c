@@ -356,6 +356,10 @@ static int next_token(const char **pp, char *tokbuf, int bufsz) {
     } else if (*p == ')') {
         PUSH(*p++);
         while (*p >= '0' && *p <= '9') PUSH(*p++);
+    } else if (*p == 'x' || *p == 'y' || *p == 'z') {
+        // Rotation token: x, y, z with optional ' or 2 modifier
+        PUSH(*p++);
+        if (*p == '\'' || *p == '2') PUSH(*p++);
     } else {
         // Move token: digits*, uppercase-letter, 'w'?, modifier?
         while (*p >= '0' && *p <= '9') PUSH(*p++);
@@ -373,6 +377,23 @@ static int next_token(const char **pp, char *tokbuf, int bufsz) {
     return 1;
 }
 #undef PUSH
+
+/*
+ * push_rotation: desugar x/y/z rotation tokens into two wide moves.
+ *   x -> Rw Lw'   y -> Uw Dw'   z -> Fw Bw'
+ * Modifiers are applied: x' inverts to Rw' Lw, x2 gives Rw2 Lw2.
+ */
+static void push_rotation(Alg *a, const char *tok) {
+    static const struct { uint8_t f1, f2; } map[3] = {
+        { FACE_R, FACE_L }, /* x */
+        { FACE_U, FACE_D }, /* y */
+        { FACE_F, FACE_B }, /* z */
+    };
+    int idx = (tok[0] == 'x') ? 0 : (tok[0] == 'y') ? 1 : 2;
+    int q   = (tok[1] == '\'') ? 3 : (tok[1] == '2') ? 2 : 1;
+    alg_push(a, map[idx].f1, (uint8_t)q,       2);
+    alg_push(a, map[idx].f2, (uint8_t)(4 - q), 2);
+}
 
 bool alg_parse(const char *text, Alg *out) {
     Alg  stk[MAX_DEPTH];
@@ -420,6 +441,9 @@ bool alg_parse(const char *text, Alg *out) {
             for (int i = 0; i < mul; i++) alg_concat(&stk[depth - 1], &inner);
 
             alg_free(&inner);
+        } else if (tok[0] == 'x' || tok[0] == 'y' || tok[0] == 'z') {
+            // Rotation sugar: x -> Rw Lw', y -> Uw Dw', z -> Fw Bw'
+            push_rotation(&stk[depth - 1], tok);
         } else {
             // Regular move token
             Move mv;

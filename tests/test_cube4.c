@@ -160,6 +160,62 @@ static void test_facelet_to_piece_count(void) {
     printf("PASS: facelet_to_piece4 piece counts correct\n");
 }
 
+static void test_scramble_inverse(void) {
+    const char *scramble =
+        "Dw' U' Dw2 U R' U' B Uw' Rw L F B2 D B Lw' D2 L B2 R2 F' U2 L2 B "
+        "Fw2 R' Lw R2 Uw2 F U2 F U' Fw' Rw' F2 U2 Rw Fw' D' Rw2 Uw2 R2 Rw' "
+        "Uw2 L U Fw2 D B2 D' L2 Rw2 D2 Uw2 F Uw2 U F' U B2 L B2 R2 U F L "
+        "U2 F2 R2 B2 U L2 D' B2 U R2 y' z2";
+
+    Alg a = {0}, inv = {0};
+    assert(alg_parse(scramble, &a));
+
+    CubeState4 s;
+    cube4_identity(&s);
+    cube4_apply_sequence(&s, &a);
+
+    alg_invert(&a, &inv);
+    cube4_apply_sequence(&s, &inv);
+
+    assert(cube4_is_identity(&s));
+    alg_free(&a);
+    alg_free(&inv);
+    printf("PASS: scramble round-trip (apply + inverse = identity)\n");
+}
+
+static void test_rotation_desugar(void) {
+    /* x/y/z must produce the same state as their two-move expansions. */
+    const struct { const char *rot; const char *expanded; } cases[] = {
+        { "x",  "Rw Lw'"  },
+        { "x'", "Rw' Lw"  },
+        { "x2", "Rw2 Lw2" },
+        { "y",  "Uw Dw'"  },
+        { "y'", "Uw' Dw"  },
+        { "y2", "Uw2 Dw2" },
+        { "z",  "Fw Bw'"  },
+        { "z'", "Fw' Bw"  },
+        { "z2", "Fw2 Bw2" },
+    };
+    for (int i = 0; i < (int)(sizeof cases / sizeof *cases); i++) {
+        CubeState4 a, b;
+        cube4_identity(&a);
+        cube4_identity(&b);
+        Alg ar = {0}, br = {0};
+        assert(alg_parse(cases[i].rot,      &ar));
+        assert(alg_parse(cases[i].expanded, &br));
+        cube4_apply_sequence(&a, &ar);
+        cube4_apply_sequence(&b, &br);
+        if (memcmp(&a, &b, sizeof a) != 0) {
+            fprintf(stderr, "FAIL: rotation desugar: %s != %s\n",
+                    cases[i].rot, cases[i].expanded);
+            assert(0);
+        }
+        alg_free(&ar);
+        alg_free(&br);
+    }
+    printf("PASS: x/y/z rotation desugar\n");
+}
+
 int main(void) {
     cube4_init();
 
@@ -173,6 +229,8 @@ int main(void) {
     test_move_directions();
     test_cycleset_nonempty();
     test_superflip_like_order();
+    test_rotation_desugar();
+    test_scramble_inverse();
 
     printf("All cube4 tests passed.\n");
     return 0;
