@@ -2,7 +2,8 @@
 
 # Cubyte
 
-A compiler and browser emulator for **CuBit** — a programming language whose runtime is a Rubik's cube.
+A compiler and browser emulator for **CuBit** — a programming language whose runtime is a Rubik's cube!
+Written as extension for C project by Tristan Basri, Panth Patel, Suchir Gupta, Arnav Maniyar. 
 
 ---
 
